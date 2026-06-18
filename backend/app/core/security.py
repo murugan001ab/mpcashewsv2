@@ -45,27 +45,60 @@ def decode_token(token: str) -> Optional[dict]:
         return None
 
 
-def set_auth_cookies(response: Any, access_token: str, refresh_token: str) -> None:
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
+def _cookie_kwargs() -> dict:
+    """
+    Base cookie attributes shared by set and delete operations.
+    domain is omitted entirely when COOKIE_DOMAIN is empty so browsers
+    don't reject a domain="" attribute (which is invalid).
+    """
+    kwargs = dict(
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite=settings.COOKIE_SAMESITE,
+    )
+    if settings.COOKIE_DOMAIN:
+        kwargs["domain"] = settings.COOKIE_DOMAIN
+    return kwargs
+
+
+def set_auth_cookies(response: Any, access_token: str, refresh_token: str) -> None:
+    """
+    Write both JWT tokens as HttpOnly cookies.
+
+    Security attributes:
+      httponly=True   → JS / XSS cannot read the value
+      secure=True     → Only sent over HTTPS (disable for local HTTP dev only)
+      samesite="lax"  → Sent on same-site requests; blocks cross-site CSRF POSTs
+
+    Path scoping:
+      access_token  → path="/api"               (sent on every API call)
+      refresh_token → path="/api/v1/auth/refresh" (sent ONLY to the refresh endpoint)
+    """
+    base = _cookie_kwargs()
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
         max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        domain=settings.COOKIE_DOMAIN,
+        path="/api",
+        **base,
     )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
-        httponly=True,
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
         max_age=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-        domain=settings.COOKIE_DOMAIN,
+        path="/api/v1/auth/refresh",
+        **base,
     )
 
 
 def clear_auth_cookies(response: Any) -> None:
-    response.delete_cookie("access_token", domain=settings.COOKIE_DOMAIN)
-    response.delete_cookie("refresh_token", domain=settings.COOKIE_DOMAIN)
+    """
+    Delete both auth cookies.
+
+    path/domain/secure/samesite/httponly must exactly match the values used
+    when the cookies were set, otherwise the browser ignores the instruction.
+    """
+    base = _cookie_kwargs()
+    response.delete_cookie("access_token", path="/api", **base)
+    response.delete_cookie("refresh_token", path="/api/v1/auth/refresh", **base)

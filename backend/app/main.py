@@ -1,5 +1,4 @@
 import logging
-import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -20,13 +19,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     logger.info("Starting MPCashews Backend...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created/verified.")
     yield
-    # Shutdown
     logger.info("Shutting down MPCashews Backend...")
     await engine.dispose()
 
@@ -46,16 +43,23 @@ def create_application() -> FastAPI:
     application.state.limiter = limiter
     application.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    # Session middleware (needed for OAuth)
+    # Session middleware (needed for OAuth state)
     application.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
+    # ---------------------------------------------------------------------------
     # CORS
+    #
+    # allow_credentials=True is REQUIRED for the browser to include HttpOnly
+    # cookies in cross-origin requests.  When this is True, allow_origins must
+    # list explicit origins — the wildcard "*" is not allowed by the spec.
+    # ---------------------------------------------------------------------------
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
+        allow_origins=settings.FRONTEND_ORIGINS,
+        allow_credentials=True,   # ← lets the browser send HttpOnly cookies
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["Set-Cookie"],
     )
 
     # Custom logging middleware

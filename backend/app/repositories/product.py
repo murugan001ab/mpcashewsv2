@@ -18,7 +18,17 @@ class CategoryRepository(BaseRepository[Category]):
         return result.scalar_one_or_none()
 
     async def get_active(self) -> List[Category]:
-        result = await self.db.execute(select(Category).where(Category.is_active == True))
+        """Return only active categories (used by public endpoints)."""
+        result = await self.db.execute(
+            select(Category).where(Category.is_active == True).order_by(Category.name)
+        )
+        return list(result.scalars().all())
+
+    async def get_all(self) -> List[Category]:
+        """Return ALL categories including inactive ones (used by admin endpoints)."""
+        result = await self.db.execute(
+            select(Category).order_by(Category.name)
+        )
         return list(result.scalars().all())
 
 

@@ -14,6 +14,7 @@ class OrderStatus(str, PyEnum):
     PENDING = "pending"
     CONFIRMED = "confirmed"
     PROCESSING = "processing"
+    OUT_FOR_DELIVERY = "out_for_delivery"
     SHIPPED = "shipped"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"

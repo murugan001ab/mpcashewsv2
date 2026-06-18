@@ -6,6 +6,7 @@ from app.models.order import Order, OrderItem, OrderStatus
 from app.models.payment import Payment, PaymentStatus
 from app.models.delivery import Delivery, DeliveryStatus
 from app.models.address import Address
+from app.models.otp import PhoneOTP, EmailVerification
 
 __all__ = [
     "User", "UserRole",
@@ -16,4 +17,6 @@ __all__ = [
     "Payment", "PaymentStatus",
     "Delivery", "DeliveryStatus",
     "Address",
+    "PhoneOTP",
+    "EmailVerification",
 ]

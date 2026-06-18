@@ -9,11 +9,15 @@ from app.models.user import UserRole
 
 class UserBase(BaseModel):
     email: EmailStr
-    full_name: str
+    full_name: Optional[str] = None
     phone: Optional[str] = None
 
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
+    """Registration only requires email and password.
+    full_name is optional; if omitted it defaults to the email prefix.
+    """
+    email: EmailStr
     password: str
 
     @field_validator("password")

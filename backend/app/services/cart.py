@@ -1,7 +1,10 @@
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
+from sqlalchemy import insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cart import Cart, CartItem
@@ -20,11 +23,27 @@ class CartService:
         self.product_repo = ProductRepository(db)
 
     async def _get_or_create_cart(self, user_id: UUID) -> Cart:
-        cart = await self.cart_repo.get_by_user(user_id)
-        if not cart:
-            cart = Cart(user_id=user_id)
-            cart = await self.cart_repo.create(cart)
-        return cart
+        """
+        Atomically get or create a cart for the user using
+        INSERT ... ON CONFLICT DO NOTHING, eliminating the race condition
+        that caused UniqueViolationError when two requests fired concurrently.
+        """
+        now = datetime.now(timezone.utc)
+
+        stmt = (
+            pg_insert(Cart)
+            .values(
+                id=uuid4(),
+                user_id=user_id,
+                created_at=now,
+                updated_at=now,
+            )
+            .on_conflict_do_nothing(index_elements=["user_id"])
+        )
+        await self.cart_repo.db.execute(stmt)
+        await self.cart_repo.db.flush()
+
+        return await self.cart_repo.get_by_user(user_id)
 
     async def add_item(self, user_id: UUID, data: CartItemAdd) -> Cart:
         product = await self.product_repo.get_with_relations(data.product_id)

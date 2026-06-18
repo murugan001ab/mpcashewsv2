@@ -17,9 +17,18 @@ class Cart(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    user: Mapped["User"] = relationship("User", back_populates="cart")
-    items: Mapped[list["CartItem"]] = relationship("CartItem", back_populates="cart", cascade="all, delete-orphan")
+    user: Mapped["User"] = relationship(
+    "User",
+    back_populates="cart",
+    lazy="selectin"
+)
 
+    items: Mapped[list["CartItem"]] = relationship(
+        "CartItem",
+        back_populates="cart",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
 
 class CartItem(Base):
     __tablename__ = "cart_items"
@@ -32,5 +41,14 @@ class CartItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    cart: Mapped["Cart"] = relationship("Cart", back_populates="items")
-    product: Mapped["Product"] = relationship("Product", back_populates="cart_items")
+    cart: Mapped["Cart"] = relationship(
+    "Cart",
+    back_populates="items",
+    lazy="selectin"
+)
+
+    product: Mapped["Product"] = relationship(
+        "Product",
+        back_populates="cart_items",
+        lazy="selectin"
+    )

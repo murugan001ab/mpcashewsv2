@@ -25,7 +25,12 @@ class CategoryService:
         return await self.repo.create(category)
 
     async def get_all(self) -> List[Category]:
+        """Public: active categories only."""
         return await self.repo.get_active()
+
+    async def get_all_for_admin(self) -> List[Category]:
+        """Admin: all categories including inactive ones."""
+        return await self.repo.get_all()
 
     async def get_by_id(self, category_id: UUID) -> Category:
         cat = await self.repo.get_by_id(category_id)
@@ -37,7 +42,16 @@ class CategoryService:
         cat = await self.get_by_id(category_id)
         update_data = data.model_dump(exclude_none=True)
         if "name" in update_data:
-            update_data["slug"] = slugify(update_data["name"])
+            new_slug = slugify(update_data["name"])
+            # Only enforce slug uniqueness if the name actually changed
+            if new_slug != cat.slug:
+                existing = await self.repo.get_by_slug(new_slug)
+                if existing and existing.id != category_id:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Another category with this name already exists",
+                    )
+                update_data["slug"] = new_slug
         return await self.repo.update(cat, update_data)
 
     async def delete(self, category_id: UUID) -> None:
