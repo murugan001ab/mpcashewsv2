@@ -1,5 +1,5 @@
 from app.models.user import User, UserRole
-from app.models.product import Product, Category, ProductImage
+from app.models.product import Product, Category, ProductImage, ProductVariant
 from app.models.cart import Cart, CartItem
 from app.models.wishlist import Wishlist, WishlistItem
 from app.models.order import Order, OrderItem, OrderStatus
@@ -10,7 +10,7 @@ from app.models.otp import PhoneOTP, EmailVerification
 
 __all__ = [
     "User", "UserRole",
-    "Product", "Category", "ProductImage",
+    "Product", "Category", "ProductImage", "ProductVariant",
     "Cart", "CartItem",
     "Wishlist", "WishlistItem",
     "Order", "OrderItem", "OrderStatus",

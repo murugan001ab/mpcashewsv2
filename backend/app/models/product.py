@@ -35,11 +35,6 @@ class Product(Base):
     slug: Mapped[str] = mapped_column(String(300), nullable=False, unique=True, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     short_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    discounted_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
-    stock: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    sku: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
-    weight_grams: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     category_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False)
@@ -47,7 +42,12 @@ class Product(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     category: Mapped["Category"] = relationship("Category", back_populates="products")
-    images: Mapped[list["ProductImage"]] = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
+    variants: Mapped[list["ProductVariant"]] = relationship(
+        "ProductVariant", back_populates="product", cascade="all, delete-orphan"
+    )
+    images: Mapped[list["ProductImage"]] = relationship(
+        "ProductImage", back_populates="product", cascade="all, delete-orphan"
+    )
     cart_items: Mapped[list["CartItem"]] = relationship("CartItem", back_populates="product")
     wishlist_items: Mapped[list["WishlistItem"]] = relationship("WishlistItem", back_populates="product")
     order_items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="product")
@@ -59,6 +59,30 @@ class Product(Base):
 
     def __repr__(self) -> str:
         return f"<Product {self.name}>"
+
+
+class ProductVariant(Base):
+    __tablename__ = "product_variants"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    sku: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    weight_grams: Mapped[int] = mapped_column(Integer, nullable=False)
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    discounted_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    stock: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    product: Mapped["Product"] = relationship("Product", back_populates="variants")
+
+    __table_args__ = (
+        Index("ix_product_variants_product_id", "product_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ProductVariant sku={self.sku} weight={self.weight_grams}g>"
 
 
 class ProductImage(Base):
