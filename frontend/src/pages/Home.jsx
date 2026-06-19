@@ -193,13 +193,11 @@ export default function Home() {
         <CategoryScroller />
       </div>
 
-      {/* ══════════════════════════════════════════════
-          PRODUCTS
-      ══════════════════════════════════════════════ */}
+     
       <section id="products-section" className=" mx-auto px-4 sm:px-8 pb-20">
 
         {/* Section header */}
-        <div className="mb-10 flex flex-col gap-1">
+        <div className="mb-10 flex  px-4 sm:px-8 flex-col gap-1">
           <span className="text-[#E8820C] text-xs font-black uppercase tracking-[0.2em]">
             Our Collection
           </span>
@@ -236,7 +234,7 @@ export default function Home() {
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+            className="grid py-10 px-4 sm:px-8 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
           >
             {filteredProducts.map(p => (
               <motion.div key={p.id} variants={cardAnim}>
