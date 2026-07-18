@@ -7,7 +7,9 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import SignInPage from "./pages/Login/Login";
 import SignupPage from "./pages/Login/Register";
+import GoogleCallback from "./pages/Login/GoogleCallback";
 import Cart from "./pages/Cart";
+import Wishlist from "./pages/Wishlist";
 import Address from "./pages/Address";
 import Payment from "./pages/Payment";
 import OrderSuccess from "./pages/OrderSuccess";
@@ -36,8 +38,10 @@ function AppRoutes() {
         {/* PUBLIC ROUTES */}
         <Route path="/" element={<Home />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/login" element={<SignInPage />} />
         <Route path="/register" element={<SignupPage />} />
+        <Route path="/google/callback" element={<GoogleCallback />} />
 
         <Route path="/product/:id" element={<ProductDetails />} />
         <Route path="/address" element={<Address />} />

@@ -1,4 +1,9 @@
 // src/utils/localCart.js
+//
+// FIXED: addLocalItem previously stored items with only an `id` field
+// (taken from the product). Code elsewhere (e.g. Home.jsx) matches cart
+// items by `product_id`, which was never set, so the "in cart" / quantity
+// stepper UI never recognized items a guest had already added.
 
 const CART_KEY = "local_cart";
 
@@ -17,7 +22,9 @@ export const addLocalItem = (product) => {
   if (index >= 0) {
     cart[index].quantity += 1;
   } else {
-    cart.push({ ...product, quantity: 1 });
+    // Stamp product_id alongside id so callers that match on either
+    // field (Home.jsx uses product_id, Cart.jsx uses id) both work.
+    cart.push({ ...product, product_id: product.id, quantity: 1 });
   }
 
   saveLocalCart(cart);

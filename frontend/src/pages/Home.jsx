@@ -8,7 +8,7 @@ import ProductCard from "../components/ProductCard";
 import CategoryScroller from "../components/Category";
 import api from "../services/api";
 import * as cartService from "../services/cartService";
-import { getLocalCart, addLocalItem } from "../utils/localcart";
+import { getLocalCart, addLocalItem, updateLocalItem } from "../utils/localcart";
 import cashewBanner from "../assets/cashews_top.png";
 
 // ── Brand colours (match logo exactly) ──────────────────────────────────────
@@ -54,7 +54,7 @@ export default function Home() {
   const loadProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get("products/");
+      const res = await api.get("products");
       setProducts(res.data?.items || res.data || []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -64,20 +64,32 @@ export default function Home() {
     if (!isLogged) { setCartItems(getLocalCart()); return; }
     try {
       const res = await cartService.getCart(accessToken);
-      setCartItems(res.items || []);
+      // The API returns items with nested `product` / `variant` objects
+      // (no flat product_id / variant_id). Normalize so the rest of the
+      // UI — which matches cart items by product_id/variant_id — works.
+      const items = (res.items || []).map(i => ({
+        ...i,
+        product_id: i.product?.id,
+        variant_id: i.variant?.id,
+        price: i.price_at_add ?? i.price,
+      }));
+      setCartItems(items);
     } catch (e) { console.error(e); }
   }, [isLogged, accessToken]);
 
   useEffect(() => { Promise.all([loadProducts(), loadCart()]); }, [loadProducts, loadCart]);
 
   const handleAdd = async (product) => {
+    const variant = product.selectedVariant;
     if (!isLogged) { setCartItems(addLocalItem(product)); return; }
-    try { await cartService.addToCart(accessToken, { product_id: product.id, quantity: 1 }); loadCart(); }
+    if (!variant) { console.error("No variant selected for", product); return; }
+    try { await cartService.addToCart(accessToken, { variant_id: variant.id, quantity: 1 }); loadCart(); }
     catch (e) { console.error(e); }
   };
 
   const handleIncrement = async (product) => {
-    const item = cartItems.find(i => i.product_id === product.id);
+    const variant = product.selectedVariant;
+    const item = cartItems.find(i => (variant && i.variant_id === variant.id) || i.product_id === product.id);
     if (!item) return;
     if (!isLogged) { setCartItems(addLocalItem(product)); return; }
     await cartService.updateCartItem(accessToken, item.id, { quantity: item.quantity + 1 });
@@ -85,9 +97,10 @@ export default function Home() {
   };
 
   const handleDecrement = async (product) => {
-    const item = cartItems.find(i => i.product_id === product.id);
+    const variant = product.selectedVariant;
+    const item = cartItems.find(i => (variant && i.variant_id === variant.id) || i.product_id === product.id);
     if (!item || item.quantity <= 1) return;
-    if (!isLogged) return;
+    if (!isLogged) { setCartItems(updateLocalItem(product.id, item.quantity - 1)); return; }
     await cartService.updateCartItem(accessToken, item.id, { quantity: item.quantity - 1 });
     loadCart();
   };
@@ -111,11 +124,11 @@ export default function Home() {
           src={cashewBanner}
           alt=""
           aria-hidden
-          className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-luminosity"
+          className="absolute inset-0 w-full h-full object-cover opacity-40 "
         />
 
         {/* Orange glow blob */}
-        <div className="absolute top-1/4 right-0 w-[600px] h-[600px] rounded-full bg-[#E8820C] opacity-20 blur-[120px] pointer-events-none" />
+        {/* <div className="absolute top-1/4 right-0 w-[600px] h-[600px] rounded-full bg-[#E8820C] opacity-20 blur-[120px] pointer-events-none" /> */}
 
         {/* Hero content */}
         <div className="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-8 pb-16 pt-24 flex flex-col gap-8">
@@ -189,7 +202,7 @@ export default function Home() {
       {/* ══════════════════════════════════════════════
           CATEGORIES
       ══════════════════════════════════════════════ */}
-      <div className=" mx-auto px-4 sm:px-8 py-10">
+      <div className=" mx-auto px-4 sm:px-8 ">
         <CategoryScroller />
       </div>
 
@@ -197,7 +210,7 @@ export default function Home() {
       <section id="products-section" className=" mx-auto px-4 sm:px-8 pb-20">
 
         {/* Section header */}
-        <div className="mb-10 flex  px-4 sm:px-8 flex-col gap-1">
+        <div className="flex   px-4 sm:px-8 flex-col  items-center gap-1">
           <span className="text-[#E8820C] text-xs font-black uppercase tracking-[0.2em]">
             Our Collection
           </span>
@@ -241,7 +254,7 @@ export default function Home() {
                 <ProductCard
                   product={p}
                   cartItems={cartItems}
-                  onAddToCart={() => handleAdd(p)}
+                  onAddToCart={handleAdd}
                   onIncrement={handleIncrement}
                   onDecrement={handleDecrement}
                   onBuyNow={handleBuyNow}

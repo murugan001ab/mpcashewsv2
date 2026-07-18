@@ -1,20 +1,21 @@
 // src/services/cartService.js
-// All endpoints go through the Gateway → /api/cart/*
+// All endpoints go through /api/v1/cart/* (cookie auth via withCredentials,
+// the `token` params below are kept only for call-site backward-compat and ignored)
 import { getData, postData, patchData, deleteData } from "./api";
 
-// GET /api/cart/  → returns { items: [...], total: ... }
-export const getCart = (token) => getData("cart/", token);
+// GET /api/v1/cart  -> { items: [...], total: ... }
+export const getCart = (_token) => getData("cart");
 
-// POST /api/cart/items  → body: { variant_id, quantity }
-export const addToCart = (token, data) => postData("cart/items", data, token);
+// POST /api/v1/cart/items  -> body: { product_id, quantity }
+export const addToCart = (_token, data) => postData("cart/items", data);
 
-// PATCH /api/cart/items/{variant_id}  → body: { quantity }  (0 = remove)
-export const updateCartItem = (token, variantId, data) =>
-  patchData(`cart/items/${variantId}`, data, token);
+// PATCH /api/v1/cart/items/{item_id}  -> body: { quantity }
+export const updateCartItem = (_token, itemId, data) =>
+  patchData(`cart/items/${itemId}`, data);
 
-// DELETE /api/cart/items/{variant_id}
-export const removeFromCart = (token, variantId) =>
-  deleteData(`cart/items/${variantId}`, token);
+// DELETE /api/v1/cart/items/{item_id}
+export const removeFromCart = (_token, itemId) =>
+  deleteData(`cart/items/${itemId}`);
 
-// DELETE /api/cart/  → wipe entire cart
-export const clearCart = (token) => deleteData("cart/", token);
+// DELETE /api/v1/cart  -> wipe entire cart
+export const clearCart = (_token) => deleteData("cart");

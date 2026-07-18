@@ -15,8 +15,10 @@ class Wishlist(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    user: Mapped["User"] = relationship("User", back_populates="wishlist")
-    items: Mapped[list["WishlistItem"]] = relationship("WishlistItem", back_populates="wishlist", cascade="all, delete-orphan")
+    user: Mapped["User"] = relationship("User", back_populates="wishlist", lazy="selectin")
+    items: Mapped[list["WishlistItem"]] = relationship(
+        "WishlistItem", back_populates="wishlist", cascade="all, delete-orphan", lazy="selectin"
+    )
 
 
 class WishlistItem(Base):
@@ -27,5 +29,5 @@ class WishlistItem(Base):
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    wishlist: Mapped["Wishlist"] = relationship("Wishlist", back_populates="items")
-    product: Mapped["Product"] = relationship("Product", back_populates="wishlist_items")
+    wishlist: Mapped["Wishlist"] = relationship("Wishlist", back_populates="items", lazy="selectin")
+    product: Mapped["Product"] = relationship("Product", back_populates="wishlist_items", lazy="selectin")

@@ -36,6 +36,7 @@ class CartItem(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cart_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("carts.id"), nullable=False)
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
+    variant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("product_variants.id"), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     price_at_add: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -50,5 +51,10 @@ class CartItem(Base):
     product: Mapped["Product"] = relationship(
         "Product",
         back_populates="cart_items",
+        lazy="selectin"
+    )
+
+    variant: Mapped["ProductVariant"] = relationship(
+        "ProductVariant",
         lazy="selectin"
     )

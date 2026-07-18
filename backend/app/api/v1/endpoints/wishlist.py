@@ -20,11 +20,7 @@ async def get_wishlist(
     """Get user wishlist."""
     service = WishlistService(db)
     wishlist = await service.get_wishlist(current_user.id)
-    return WishlistResponse(
-        id=str(wishlist.id),
-        items=[{"id": str(i.id), "product": i.product} for i in wishlist.items],
-        total=len(wishlist.items),
-    )
+    return WishlistResponse.model_validate(wishlist)
 
 
 @router.post("/items", response_model=WishlistResponse)
@@ -36,11 +32,7 @@ async def add_to_wishlist(
     """Add a product to wishlist."""
     service = WishlistService(db)
     wishlist = await service.add_product(current_user.id, UUID(data.product_id))
-    return WishlistResponse(
-        id=str(wishlist.id),
-        items=[{"id": str(i.id), "product": i.product} for i in wishlist.items],
-        total=len(wishlist.items),
-    )
+    return WishlistResponse.model_validate(wishlist)
 
 
 @router.delete("/items/{product_id}", response_model=WishlistResponse)
@@ -52,8 +44,4 @@ async def remove_from_wishlist(
     """Remove a product from wishlist."""
     service = WishlistService(db)
     wishlist = await service.remove_product(current_user.id, product_id)
-    return WishlistResponse(
-        id=str(wishlist.id),
-        items=[{"id": str(i.id), "product": i.product} for i in wishlist.items],
-        total=len(wishlist.items),
-    )
+    return WishlistResponse.model_validate(wishlist)

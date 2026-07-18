@@ -3,13 +3,12 @@ from uuid import UUID, uuid4
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
-from sqlalchemy import insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.cart import Cart, CartItem
 from app.repositories.cart import CartRepository
-from app.repositories.product import ProductRepository
+from app.repositories.product import ProductRepository, ProductVariantRepository
 from app.schemas.cart import CartItemAdd, CartItemUpdate, CartSummary, CartItemResponse
 
 TAX_RATE = Decimal("0.18")        # 18% GST
@@ -21,6 +20,7 @@ class CartService:
     def __init__(self, db: AsyncSession):
         self.cart_repo = CartRepository(db)
         self.product_repo = ProductRepository(db)
+        self.variant_repo = ProductVariantRepository(db)
 
     async def _get_or_create_cart(self, user_id: UUID) -> Cart:
         """
@@ -46,25 +46,30 @@ class CartService:
         return await self.cart_repo.get_by_user(user_id)
 
     async def add_item(self, user_id: UUID, data: CartItemAdd) -> Cart:
-        product = await self.product_repo.get_with_relations(data.product_id)
-        if not product or not product.is_active:
+        # Price and stock live on the variant, not the product — the product
+        # row has no price/stock columns of its own.
+        variant = await self.variant_repo.get_with_product(data.variant_id)
+        if not variant or not variant.is_active:
+            raise HTTPException(status_code=404, detail="Product variant not found")
+        if not variant.product or not variant.product.is_active:
             raise HTTPException(status_code=404, detail="Product not found")
-        if product.stock < data.quantity:
-            raise HTTPException(status_code=400, detail=f"Only {product.stock} units available")
+        if variant.stock < data.quantity:
+            raise HTTPException(status_code=400, detail=f"Only {variant.stock} units available")
 
         cart = await self._get_or_create_cart(user_id)
-        existing = await self.cart_repo.get_cart_item(cart.id, data.product_id)
+        existing = await self.cart_repo.get_cart_item_by_variant(cart.id, data.variant_id)
 
         if existing:
             new_qty = existing.quantity + data.quantity
-            if product.stock < new_qty:
-                raise HTTPException(status_code=400, detail=f"Only {product.stock} units available")
+            if variant.stock < new_qty:
+                raise HTTPException(status_code=400, detail=f"Only {variant.stock} units available")
             existing.quantity = new_qty
         else:
-            price = product.discounted_price or product.price
+            price = variant.discounted_price or variant.price
             item = CartItem(
                 cart_id=cart.id,
-                product_id=data.product_id,
+                product_id=variant.product_id,
+                variant_id=variant.id,
                 quantity=data.quantity,
                 price_at_add=price,
             )
@@ -79,9 +84,10 @@ class CartService:
         if not item or item.cart_id != cart.id:
             raise HTTPException(status_code=404, detail="Cart item not found")
 
-        product = await self.product_repo.get_by_id(item.product_id)
-        if product and product.stock < data.quantity:
-            raise HTTPException(status_code=400, detail=f"Only {product.stock} units available")
+        if item.variant_id:
+            variant = await self.variant_repo.get_by_id(item.variant_id)
+            if variant and variant.stock < data.quantity:
+                raise HTTPException(status_code=400, detail=f"Only {variant.stock} units available")
 
         if data.quantity <= 0:
             await self.cart_repo.db.delete(item)
@@ -110,6 +116,7 @@ class CartService:
             items.append(CartItemResponse(
                 id=item.id,
                 product=item.product,
+                variant=item.variant,
                 quantity=item.quantity,
                 price_at_add=item.price_at_add,
                 subtotal=item_subtotal,

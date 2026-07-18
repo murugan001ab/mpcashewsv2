@@ -1,13 +1,13 @@
 import uuid
 from decimal import Decimal
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 
-from app.schemas.product import ProductListResponse
+from app.schemas.product import ProductListResponse, ProductVariantResponse
 
 
 class CartItemAdd(BaseModel):
-    product_id: uuid.UUID
+    variant_id: uuid.UUID
     quantity: int = 1
 
 
@@ -18,6 +18,7 @@ class CartItemUpdate(BaseModel):
 class CartItemResponse(BaseModel):
     id: uuid.UUID
     product: ProductListResponse
+    variant: Optional[ProductVariantResponse] = None
     quantity: int
     price_at_add: Decimal
     subtotal: Decimal

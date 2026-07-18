@@ -1,0 +1,507 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);font-size:14px;color:var(--text-primary)}
+.wrap{display:flex;height:100vh;min-height:600px;overflow:hidden}
+.sidebar{width:220px;flex-shrink:0;border-right:0.5px solid var(--border);overflow-y:auto;padding:12px 0;background:var(--surface-1)}
+.sidebar h3{font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;padding:8px 16px 4px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:6px 16px;cursor:pointer;font-size:13px;color:var(--text-secondary);border-radius:0;transition:background .12s}
+.nav-item:hover{background:var(--surface-0);color:var(--text-primary)}
+.nav-item.active{background:var(--bg-accent);color:var(--text-accent);font-weight:500}
+.badge{font-size:10px;font-weight:500;padding:2px 6px;border-radius:4px;letter-spacing:.02em}
+.GET{background:#EAF3DE;color:#3B6D11}.POST{background:#E6F1FB;color:#185FA5}
+.PATCH{background:#FAEEDA;color:#854F0B}.DELETE{background:#FCEBEB;color:#A32D2D}
+.main{flex:1;overflow-y:auto;padding:24px 28px}
+.section-title{font-size:22px;font-weight:500;margin-bottom:4px;color:var(--text-primary)}
+.section-sub{font-size:14px;color:var(--text-secondary);margin-bottom:24px}
+.endpoint-card{border:0.5px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.endpoint-header{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;cursor:pointer;background:var(--surface-2)}
+.endpoint-header:hover{background:var(--surface-1)}
+.ep-meta{flex:1}
+.ep-path{font-family:var(--font-mono);font-size:13px;color:var(--text-primary);font-weight:500}
+.ep-desc{font-size:12px;color:var(--text-secondary);margin-top:3px}
+.ep-tag{font-size:11px;padding:2px 7px;border-radius:4px;border:0.5px solid var(--border);color:var(--text-muted)}
+.chevron{color:var(--text-muted);font-size:14px;margin-top:2px;transition:transform .2s}
+.chevron.open{transform:rotate(180deg)}
+.endpoint-body{padding:16px;border-top:0.5px solid var(--border);background:var(--surface-1)}
+.sub-title{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px}
+.code-block{background:var(--surface-0);border:0.5px solid var(--border);border-radius:8px;padding:12px 14px;font-family:var(--font-mono);font-size:12px;color:var(--text-primary);overflow-x:auto;white-space:pre;margin-bottom:14px;line-height:1.6}
+.params-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+.params-table th{text-align:left;padding:5px 8px;border-bottom:0.5px solid var(--border);color:var(--text-muted);font-weight:500;font-size:11px}
+.params-table td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top}
+.params-table tr:last-child td{border-bottom:none}
+.type-pill{background:var(--surface-0);border:0.5px solid var(--border);padding:1px 6px;border-radius:4px;font-size:11px;font-family:var(--font-mono);color:var(--text-secondary)}
+.req-badge{font-size:10px;color:var(--text-danger);font-weight:500}
+.opt-badge{font-size:10px;color:var(--text-muted)}
+.auth-note{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);margin-bottom:14px;padding:8px 12px;background:var(--bg-warning);border-radius:6px}
+.admin-note{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-accent);margin-bottom:14px;padding:8px 12px;background:var(--bg-accent);border-radius:6px}
+.pub-note{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-success);margin-bottom:14px;padding:8px 12px;background:var(--bg-success);border-radius:6px}
+.tabs{display:flex;gap:4px;margin-bottom:10px}
+.tab{font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;color:var(--text-secondary);border:0.5px solid var(--border);background:var(--surface-2)}
+.tab.active{background:var(--surface-0);color:var(--text-primary);border-color:var(--border-strong)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}.sidebar{width:160px}}
+</style>
+
+<div class="wrap">
+<div class="sidebar">
+  <h3>MP Cashews API</h3>
+  <div class="nav-item active" onclick="showSection('auth')"><i class="ti ti-lock" aria-hidden="true"></i> Auth</div>
+  <div class="nav-item" onclick="showSection('users')"><i class="ti ti-user" aria-hidden="true"></i> Users</div>
+  <div class="nav-item" onclick="showSection('products')"><i class="ti ti-package" aria-hidden="true"></i> Products</div>
+  <div class="nav-item" onclick="showSection('variants')"><i class="ti ti-adjustments" aria-hidden="true"></i> Variants</div>
+  <div class="nav-item" onclick="showSection('categories')"><i class="ti ti-category" aria-hidden="true"></i> Categories</div>
+  <div class="nav-item" onclick="showSection('cart')"><i class="ti ti-shopping-cart" aria-hidden="true"></i> Cart</div>
+  <div class="nav-item" onclick="showSection('wishlist')"><i class="ti ti-heart" aria-hidden="true"></i> Wishlist</div>
+  <div class="nav-item" onclick="showSection('orders')"><i class="ti ti-receipt" aria-hidden="true"></i> Orders</div>
+  <div class="nav-item" onclick="showSection('payments')"><i class="ti ti-credit-card" aria-hidden="true"></i> Payments</div>
+  <div class="nav-item" onclick="showSection('delivery')"><i class="ti ti-truck" aria-hidden="true"></i> Delivery</div>
+  <div class="nav-item" onclick="showSection('admin')"><i class="ti ti-shield" aria-hidden="true"></i> Admin</div>
+</div>
+
+<div class="main" id="main-content"></div>
+</div>
+
+<script>
+const BASE = "/api/v1";
+
+const AUTH_NOTE = `<div class="auth-note"><i class="ti ti-lock" aria-hidden="true"></i> Requires authentication — valid <code>access_token</code> HttpOnly cookie</div>`;
+const ADMIN_NOTE = `<div class="admin-note"><i class="ti ti-shield" aria-hidden="true"></i> Admin only — requires <code>role: admin</code></div>`;
+const PUB_NOTE = `<div class="pub-note"><i class="ti ti-world" aria-hidden="true"></i> Public — no authentication required</div>`;
+
+function badge(method){return `<span class="badge ${method}">${method}</span>`}
+
+function card(method, path, desc, auth, bodyHtml){
+  const id = (method+path).replace(/\W/g,'');
+  return `<div class="endpoint-card">
+    <div class="endpoint-header" onclick="toggleEp('${id}')">
+      <div style="padding-top:2px">${badge(method)}</div>
+      <div class="ep-meta">
+        <div class="ep-path">${BASE}${path}</div>
+        <div class="ep-desc">${desc}</div>
+      </div>
+      <i class="ti ti-chevron-down chevron" id="chev-${id}" aria-hidden="true"></i>
+    </div>
+    <div class="endpoint-body" id="body-${id}" style="display:none">
+      ${auth}
+      ${bodyHtml}
+    </div>
+  </div>`;
+}
+
+function params(rows){
+  let html = `<div class="sub-title">Parameters</div><table class="params-table"><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Required</th><th>Description</th></tr></thead><tbody>`;
+  for(const r of rows){
+    html += `<tr><td><code>${r[0]}</code></td><td><span class="type-pill">${r[1]}</span></td><td>${r[2]}</td><td><span class="${r[3]?'req-badge':'opt-badge'}">${r[3]?'required':'optional'}</span></td><td style="color:var(--text-secondary)">${r[4]}</td></tr>`;
+  }
+  return html + `</tbody></table>`;
+}
+
+function json2(label, obj){
+  return `<div class="sub-title">${label}</div><div class="code-block">${JSON.stringify(obj,null,2)}</div>`;
+}
+
+function twoCol(reqHtml, resHtml){
+  return `<div class="grid2">${reqHtml}${resHtml}</div>`;
+}
+
+const sections = {
+
+auth: {
+  title: "Authentication",
+  sub: "Registration, login, logout, token refresh, Google OAuth, and phone OTP. Tokens are delivered as HttpOnly cookies — never in the response body.",
+  endpoints: [
+    card("POST","/auth/register","Register with email and password",PUB_NOTE,
+      params([["email","string","body",true,"Valid email address"],["password","string","body",true,"Min 8 chars, 1 uppercase, 1 digit"]])+
+      twoCol(
+        json2("Request body",{email:"user@example.com",password:"Secret123"}),
+        json2("Response 201",{message:"Registration successful. Please verify your email.",email:"user@example.com"})
+      )
+    ),
+    card("GET","/auth/verify-email","Verify email via token from link",PUB_NOTE,
+      params([["token","string","query",true,"Token from verification email"]])+
+      json2("Response 200",{message:"Email verified successfully."})
+    ),
+    card("POST","/auth/resend-verification","Resend verification email",PUB_NOTE,
+      json2("Request body",{email:"user@example.com"})+
+      json2("Response 200",{message:"Verification email sent."})
+    ),
+    card("POST","/auth/login","Login with email + password — sets HttpOnly cookies",PUB_NOTE,
+      twoCol(
+        json2("Request body",{email:"user@example.com",password:"Secret123"}),
+        json2("Response 200",{token_type:"bearer",user_id:"550e8400-e29b-41d4-a716-446655440000",role:"customer"})
+      )+`<div class="sub-title" style="margin-top:0">Cookies set</div><div class="code-block">Set-Cookie: access_token=...; HttpOnly; Path=/api
+Set-Cookie: refresh_token=...; HttpOnly; Path=/api/v1/auth/refresh</div>`
+    ),
+    card("POST","/auth/logout","Revoke refresh token and clear cookies",AUTH_NOTE,
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+    card("POST","/auth/refresh","Rotate access + refresh tokens (cookie-based)",PUB_NOTE,
+      `<div style="color:var(--text-secondary);font-size:13px;margin-bottom:12px">No request body needed — browser automatically sends the <code>refresh_token</code> cookie.</div>`+
+      json2("Response 200",{token_type:"bearer",user_id:"550e8400-...",role:"customer"})
+    ),
+    card("GET","/auth/me","Get profile of the authenticated user",AUTH_NOTE,
+      json2("Response 200",{id:"550e8400-...",email:"user@example.com",full_name:"Raj Kumar",phone:"+919876543210",role:"customer",is_active:true,is_verified:true,avatar_url:null,created_at:"2025-01-15T10:30:00Z"})
+    ),
+    card("GET","/auth/google/login","Get Google OAuth redirect URL",PUB_NOTE,
+      json2("Response 200",{authorization_url:"https://accounts.google.com/o/oauth2/auth?..."})
+    ),
+    card("GET","/auth/google/callback","Handle Google OAuth callback",PUB_NOTE,
+      params([["code","string","query",true,"OAuth code from Google"]])+
+      json2("Response 200",{token_type:"bearer",user_id:"550e8400-...",role:"customer"})
+    ),
+    card("POST","/auth/phone/send-otp","Send 6-digit OTP via WhatsApp",AUTH_NOTE,
+      json2("Request body",{phone:"+919876543210"})+
+      json2("Response 200",{success:true,message:"OTP sent successfully via WhatsApp."})
+    ),
+    card("POST","/auth/phone/verify-otp","Verify OTP and save phone on profile",AUTH_NOTE,
+      json2("Request body",{phone:"+919876543210",code:"482916"})+
+      json2("Response 200",{success:true,message:"Phone number verified successfully."})
+    ),
+  ]
+},
+
+users: {
+  title: "Users",
+  sub: "User profile management and saved delivery addresses.",
+  endpoints: [
+    card("GET","/users/me","Get current user profile",AUTH_NOTE,
+      json2("Response 200",{id:"550e8400-...",email:"user@example.com",full_name:"Raj Kumar",phone:"+919876543210",role:"customer",is_active:true,is_verified:true,avatar_url:null,created_at:"2025-01-15T10:30:00Z"})
+    ),
+    card("PATCH","/users/me","Update name, phone or avatar",AUTH_NOTE,
+      twoCol(
+        json2("Request body (partial)",{full_name:"Raj Kumar",phone:"+919876543210",avatar_url:"https://cdn.example.com/avatar.jpg"}),
+        json2("Response 200",{id:"550e8400-...",email:"user@example.com",full_name:"Raj Kumar",phone:"+919876543210",role:"customer",is_active:true,is_verified:true,avatar_url:"https://cdn.example.com/avatar.jpg",created_at:"2025-01-15T10:30:00Z"})
+      )
+    ),
+    card("POST","/users/me/change-password","Change account password",AUTH_NOTE,
+      json2("Request body",{current_password:"OldPass1",new_password:"NewPass2"})+
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+    card("GET","/users/me/addresses","List all saved addresses",AUTH_NOTE,
+      json2("Response 200",[{id:"addr-uuid",full_name:"Raj Kumar",phone:"+919876543210",address_line1:"12 Main Street",address_line2:"Apt 3B",city:"Coimbatore",state:"Tamil Nadu",postal_code:"641001",country:"India",is_default:true,created_at:"2025-01-15T10:30:00Z"}])
+    ),
+    card("POST","/users/me/addresses","Add a new delivery address",AUTH_NOTE,
+      twoCol(
+        json2("Request body",{full_name:"Raj Kumar",phone:"+919876543210",address_line1:"12 Main Street",address_line2:"Apt 3B",city:"Coimbatore",state:"Tamil Nadu",postal_code:"641001",country:"India",is_default:false}),
+        json2("Response 201",{id:"addr-uuid",full_name:"Raj Kumar",phone:"+919876543210",address_line1:"12 Main Street",address_line2:"Apt 3B",city:"Coimbatore",state:"Tamil Nadu",postal_code:"641001",country:"India",is_default:false,created_at:"2025-01-20T08:00:00Z"})
+      )
+    ),
+    card("PATCH","/users/me/addresses/{address_id}","Update a saved address",AUTH_NOTE,
+      params([["address_id","UUID","path",true,"Address UUID"]])+
+      json2("Request body (partial)",{city:"Chennai",postal_code:"600001",is_default:true})+
+      json2("Response 200",{id:"addr-uuid",full_name:"Raj Kumar",phone:"+919876543210",address_line1:"12 Main Street",address_line2:"Apt 3B",city:"Chennai",state:"Tamil Nadu",postal_code:"600001",country:"India",is_default:true,created_at:"2025-01-15T10:30:00Z"})
+    ),
+    card("DELETE","/users/me/addresses/{address_id}","Delete a saved address",AUTH_NOTE,
+      params([["address_id","UUID","path",true,"Address UUID"]])+
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+  ]
+},
+
+products: {
+  title: "Products",
+  sub: "Browse, search, and manage products with variants and images. List/detail endpoints are public; write operations require admin.",
+  endpoints: [
+    card("GET","/products","List and search products with pagination",PUB_NOTE,
+      params([["q","string","query",false,"Search term"],["category_id","UUID","query",false,"Filter by category"],["is_featured","boolean","query",false,"Filter featured products"],["page","integer","query",false,"Page number (default: 1)"],["page_size","integer","query",false,"Items per page (default: 20, max: 100)"]])+
+      json2("Response 200",{items:[{id:"prod-uuid",name:"Premium Whole Cashews",slug:"premium-whole-cashews",is_active:true,is_featured:true,category:{id:"cat-uuid",name:"Whole Cashews",slug:"whole-cashews",is_active:true,created_at:"2025-01-01T00:00:00Z"},variants:[{id:"var-uuid",product_id:"prod-uuid",sku:"PWC-250G",weight_grams:250,price:"299.00",discounted_price:"249.00",stock:150,is_active:true,created_at:"2025-01-01T00:00:00Z",updated_at:"2025-01-01T00:00:00Z"}],images:[{id:"img-uuid",url:"https://cdn.example.com/cashew.jpg",alt_text:"Premium Whole Cashews",is_primary:true,sort_order:0}]}],total:45,page:1,page_size:20,pages:3})
+    ),
+    card("GET","/products/{product_id}","Get single product with variants",PUB_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"]])
+    ),
+    card("GET","/products/slug/{slug}","Get product by URL slug",PUB_NOTE,
+      params([["slug","string","path",true,"Product slug e.g. premium-whole-cashews"]])
+    ),
+    card("POST","/products","Create product with optional variants",ADMIN_NOTE,
+      twoCol(
+        json2("Request body",{name:"Premium Whole Cashews",description:"Hand-picked W240 grade cashews.",short_description:"W240 grade, premium quality.",is_featured:true,category_id:"cat-uuid",variants:[{sku:"PWC-250G",weight_grams:250,price:299,discounted_price:249,stock:150,is_active:true}]}),
+        json2("Response 201",{id:"prod-uuid",name:"Premium Whole Cashews",slug:"premium-whole-cashews",is_active:true,is_featured:true,category:{},variants:[],images:[],created_at:"2025-01-20T08:00:00Z",updated_at:"2025-01-20T08:00:00Z"})
+      )
+    ),
+    card("PATCH","/products/{product_id}","Update product metadata",ADMIN_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"]])+
+      json2("Request body (partial)",{is_featured:false,short_description:"Updated description."})
+    ),
+    card("DELETE","/products/{product_id}","Delete product and all variants",ADMIN_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"]])+
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+    card("POST","/products/{product_id}/images","Upload product image",ADMIN_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"],["is_primary","boolean","query",false,"Set as primary image (default: false)"]])+
+      `<div class="sub-title">Request</div><div class="code-block">Content-Type: multipart/form-data\nfile: &lt;binary image file&gt;</div>`+
+      json2("Response 201",{id:"img-uuid",url:"https://cdn.example.com/cashew.jpg",alt_text:null,is_primary:true,sort_order:0})
+    ),
+    card("DELETE","/products/{product_id}/images/{image_id}","Delete product image",ADMIN_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"],["image_id","UUID","path",true,"Image UUID"]])+
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+    card("GET","/products/{product_id}/variants","List all variants for a product",PUB_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"]])+
+      json2("Response 200",[{id:"var-uuid",product_id:"prod-uuid",sku:"PWC-250G",weight_grams:250,price:"299.00",discounted_price:"249.00",stock:150,is_active:true,created_at:"2025-01-01T00:00:00Z",updated_at:"2025-01-01T00:00:00Z"}])
+    ),
+    card("POST","/products/{product_id}/variants","Add variant to existing product",ADMIN_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"]])+
+      twoCol(
+        json2("Request body",{sku:"PWC-500G",weight_grams:500,price:549,discounted_price:499,stock:80,is_active:true}),
+        json2("Response 201",{id:"var-uuid-2",product_id:"prod-uuid",sku:"PWC-500G",weight_grams:500,price:"549.00",discounted_price:"499.00",stock:80,is_active:true,created_at:"2025-01-20T08:00:00Z",updated_at:"2025-01-20T08:00:00Z"})
+      )
+    ),
+  ]
+},
+
+variants: {
+  title: "Product variants",
+  sub: "Standalone variant management endpoints (admin only).",
+  endpoints: [
+    card("PATCH","/variants/{variant_id}","Update a specific variant",ADMIN_NOTE,
+      params([["variant_id","UUID","path",true,"Variant UUID"]])+
+      twoCol(
+        json2("Request body (partial)",{price:319,discounted_price:279,stock:200,is_active:true}),
+        json2("Response 200",{id:"var-uuid",product_id:"prod-uuid",sku:"PWC-250G",weight_grams:250,price:"319.00",discounted_price:"279.00",stock:200,is_active:true,created_at:"2025-01-01T00:00:00Z",updated_at:"2025-01-20T09:00:00Z"})
+      )
+    ),
+    card("DELETE","/variants/{variant_id}","Delete a specific variant",ADMIN_NOTE,
+      params([["variant_id","UUID","path",true,"Variant UUID"]])+
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+  ]
+},
+
+categories: {
+  title: "Categories",
+  sub: "Product category management. Listing is public; create/update/delete requires admin.",
+  endpoints: [
+    card("GET","/categories","List all active categories",PUB_NOTE,
+      json2("Response 200",[{id:"cat-uuid",name:"Whole Cashews",slug:"whole-cashews",description:"Premium whole cashew nuts.",image_url:"https://cdn.example.com/whole.jpg",is_active:true,created_at:"2025-01-01T00:00:00Z"}])
+    ),
+    card("GET","/categories/{category_id}","Get a single category",PUB_NOTE,
+      params([["category_id","UUID","path",true,"Category UUID"]])
+    ),
+    card("POST","/categories","Create a new category",ADMIN_NOTE,
+      twoCol(
+        json2("Request body",{name:"Roasted Cashews",description:"Perfectly roasted cashew nuts.",image_url:"https://cdn.example.com/roasted.jpg"}),
+        json2("Response 201",{id:"cat-uuid-2",name:"Roasted Cashews",slug:"roasted-cashews",description:"Perfectly roasted cashew nuts.",image_url:"https://cdn.example.com/roasted.jpg",is_active:true,created_at:"2025-01-20T08:00:00Z"})
+      )
+    ),
+    card("PATCH","/categories/{category_id}","Update a category",ADMIN_NOTE,
+      params([["category_id","UUID","path",true,"Category UUID"]])+
+      json2("Request body (partial)",{name:"Dry Roasted Cashews",is_active:false})
+    ),
+    card("DELETE","/categories/{category_id}","Delete a category",ADMIN_NOTE,
+      params([["category_id","UUID","path",true,"Category UUID"]])+
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+  ]
+},
+
+cart: {
+  title: "Cart",
+  sub: "Per-user shopping cart. All responses return the full updated cart summary.",
+  endpoints: [
+    card("GET","/cart","Get cart with totals",AUTH_NOTE,
+      json2("Response 200",{cart_id:"cart-uuid",items:[{id:"item-uuid",product:{id:"prod-uuid",name:"Premium Whole Cashews",slug:"premium-whole-cashews"},variant:{id:"var-uuid",sku:"PWC-250G",weight_grams:250,price:"299.00",discounted_price:"249.00",stock:150},quantity:2,price_at_add:"249.00",subtotal:"498.00"}],item_count:2,subtotal:"498.00",tax:"89.64",shipping:"0.00",total:"587.64"})
+    ),
+    card("POST","/cart/items","Add item to cart",AUTH_NOTE,
+      twoCol(
+        json2("Request body",{variant_id:"var-uuid",quantity:2}),
+        json2("Response 200","<CartSummary — see GET /cart>")
+      )
+    ),
+    card("PATCH","/cart/items/{item_id}","Update cart item quantity",AUTH_NOTE,
+      params([["item_id","UUID","path",true,"Cart item UUID"]])+
+      twoCol(
+        json2("Request body",{quantity:3}),
+        json2("Response 200","<CartSummary — see GET /cart>")
+      )
+    ),
+    card("DELETE","/cart/items/{item_id}","Remove an item from cart",AUTH_NOTE,
+      params([["item_id","UUID","path",true,"Cart item UUID"]])+
+      json2("Response 200","<CartSummary — see GET /cart>")
+    ),
+    card("DELETE","/cart","Clear all cart items",AUTH_NOTE,
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+  ]
+},
+
+wishlist: {
+  title: "Wishlist",
+  sub: "Save products for later. One wishlist per user.",
+  endpoints: [
+    card("GET","/wishlist","Get user wishlist",AUTH_NOTE,
+      json2("Response 200",{id:"wish-uuid",items:[{id:"witem-uuid",product:{id:"prod-uuid",name:"Premium Whole Cashews",slug:"premium-whole-cashews",variants:[],images:[]}}],total:1})
+    ),
+    card("POST","/wishlist/items","Add product to wishlist",AUTH_NOTE,
+      twoCol(
+        json2("Request body",{product_id:"prod-uuid"}),
+        json2("Response 200","<WishlistResponse — see GET /wishlist>")
+      )
+    ),
+    card("DELETE","/wishlist/items/{product_id}","Remove product from wishlist",AUTH_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"]])+
+      json2("Response 200","<WishlistResponse — see GET /wishlist>")
+    ),
+  ]
+},
+
+orders: {
+  title: "Orders",
+  sub: "Create orders from the current cart, view history, and cancel.",
+  endpoints: [
+    card("POST","/orders","Create order from current cart",AUTH_NOTE,
+      twoCol(
+        json2("Request body",{address_id:"addr-uuid",notes:"Please leave at door."}),
+        json2("Response 201",{id:"ord-uuid",order_number:"ORD-20250120-0042",status:"pending",subtotal:"498.00",tax_amount:"89.64",shipping_amount:"0.00",discount_amount:"0.00",total_amount:"587.64",notes:"Please leave at door.",items:[{id:"oi-uuid",product:{},quantity:2,unit_price:"249.00",total_price:"498.00",product_name:"Premium Whole Cashews",product_sku:"PWC-250G"}],address:{},created_at:"2025-01-20T10:00:00Z",updated_at:"2025-01-20T10:00:00Z"})
+      )
+    ),
+    card("GET","/orders","List user orders (paginated)",AUTH_NOTE,
+      params([["page","integer","query",false,"Page number (default: 1)"],["page_size","integer","query",false,"Items per page (default: 10, max: 100)"]])+
+      json2("Response 200",{items:[],total:5,page:1,page_size:10,pages:1})
+    ),
+    card("GET","/orders/{order_id}","Get a specific order",AUTH_NOTE,
+      params([["order_id","UUID","path",true,"Order UUID"]])
+    ),
+    card("POST","/orders/{order_id}/cancel","Cancel a pending or confirmed order",AUTH_NOTE,
+      params([["order_id","UUID","path",true,"Order UUID"]])+
+      json2("Response 200","<OrderResponse with status: cancelled>")
+    ),
+  ]
+},
+
+payments: {
+  title: "Payments",
+  sub: "Razorpay integration. Create a payment order, verify after checkout, request refunds.",
+  endpoints: [
+    card("POST","/payments/create","Create Razorpay payment order",AUTH_NOTE,
+      twoCol(
+        json2("Request body",{order_id:"ord-uuid"}),
+        json2("Response 200",{razorpay_order_id:"order_AbCdEf123456",amount:58764,currency:"INR",payment_id:"pay-uuid"})
+      )+`<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Amount is in paise (₹587.64 → 58764)</div>`
+    ),
+    card("POST","/payments/verify","Verify Razorpay payment after checkout",AUTH_NOTE,
+      twoCol(
+        json2("Request body",{razorpay_order_id:"order_AbCdEf123456",razorpay_payment_id:"pay_XyZ789",razorpay_signature:"sha256_hmac_signature"}),
+        json2("Response 200",{id:"pay-uuid",order_id:"ord-uuid",razorpay_order_id:"order_AbCdEf123456",razorpay_payment_id:"pay_XyZ789",amount:"587.64",currency:"INR",status:"paid",refund_id:null,refund_amount:null,created_at:"2025-01-20T10:05:00Z",updated_at:"2025-01-20T10:05:00Z"})
+      )
+    ),
+    card("POST","/payments/refund","Request a refund",AUTH_NOTE,
+      twoCol(
+        json2("Request body",{payment_id:"pay-uuid",amount:null}),
+        json2("Response 200",{id:"pay-uuid",status:"refunded",refund_id:"rfnd_AbCdEf",refund_amount:"587.64"})
+      )+`<div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Omit <code>amount</code> or set to null for a full refund.</div>`
+    ),
+    card("GET","/payments/history","Get payment history",AUTH_NOTE,
+      params([["page","integer","query",false,"Page (default: 1)"],["page_size","integer","query",false,"Per page (default: 10, max: 100)"]])+
+      json2("Response 200",{items:[{id:"pay-uuid",order_id:"ord-uuid",amount:"587.64",currency:"INR",status:"paid",created_at:"2025-01-20T10:05:00Z"}],total:3,page:1,page_size:10,pages:1})
+    ),
+  ]
+},
+
+delivery: {
+  title: "Delivery",
+  sub: "Shiprocket-powered shipping. Admins create shipments; customers track them.",
+  endpoints: [
+    card("GET","/delivery/{order_id}","Get delivery details for an order",AUTH_NOTE,
+      params([["order_id","UUID","path",true,"Order UUID"]])+
+      json2("Response 200",{id:"del-uuid",order_id:"ord-uuid",shiprocket_order_id:"SR-123456",shiprocket_shipment_id:"SH-78901",awb_code:"1234567890",courier_name:"BlueDart",courier_tracking_url:"https://bluedart.com/track/1234567890",status:"shipped",estimated_delivery:"2025-01-23T18:00:00Z",delivered_at:null,notes:null,created_at:"2025-01-20T12:00:00Z",updated_at:"2025-01-21T09:00:00Z"})
+    ),
+    card("GET","/delivery/{order_id}/track","Get live tracking info",AUTH_NOTE,
+      params([["order_id","UUID","path",true,"Order UUID"]])+
+      json2("Response 200",{awb_code:"1234567890",current_status:"In Transit",courier_name:"BlueDart",tracking_url:"https://bluedart.com/track/1234567890",activities:[{date:"2025-01-21 09:00",location:"Chennai Hub",activity:"Package in transit to Coimbatore"}]})
+    ),
+    card("POST","/delivery/{order_id}/ship","Create Shiprocket shipment (admin)",ADMIN_NOTE,
+      params([["order_id","UUID","path",true,"Order UUID"]])+
+      json2("Response 200","<DeliveryResponse — see GET /delivery/{order_id}>")
+    ),
+  ]
+},
+
+admin: {
+  title: "Admin",
+  sub: "Dashboard, reporting, and management endpoints. All require admin role.",
+  endpoints: [
+    card("GET","/admin/dashboard","Overall dashboard stats",ADMIN_NOTE,
+      json2("Response 200",{total_users:1240,total_orders:856,total_revenue:"2450890.50",total_products:48,pending_orders:12,low_stock_products:5})
+    ),
+    card("GET","/admin/revenue","Monthly revenue breakdown",ADMIN_NOTE,
+      json2("Response 200",[{month:"2025-01",revenue:"185000.00",orders:62},{month:"2025-02",revenue:"210500.00",orders:74}])
+    ),
+    card("GET","/admin/top-products","Top-selling products",ADMIN_NOTE,
+      params([["limit","integer","query",false,"Number of results (default: 10, max: 50)"]])+
+      json2("Response 200",[{product_id:"prod-uuid",product_name:"Premium Whole Cashews",total_sold:312,revenue:"77688.00"}])
+    ),
+    card("GET","/admin/inventory","Inventory status report",ADMIN_NOTE,
+      json2("Response 200",[{product_id:"prod-uuid",name:"Premium Whole Cashews",sku:"PWC-250G",stock:150,status:"ok"},{product_id:"prod-uuid-2",name:"Roasted Cashews",sku:"RC-250G",stock:4,status:"low"},{product_id:"prod-uuid-3",name:"Salted Cashews",sku:"SC-100G",stock:0,status:"out"}])
+    ),
+    card("GET","/admin/users","List all users (paginated)",ADMIN_NOTE,
+      params([["page","integer","query",false,"Page (default: 1)"],["page_size","integer","query",false,"Per page (default: 20, max: 100)"]])+
+      json2("Response 200",{items:[{id:"user-uuid",email:"user@example.com",full_name:"Raj Kumar",role:"customer",is_active:true,created_at:"2025-01-15T10:30:00Z"}],total:1240,page:1,page_size:20,pages:62})
+    ),
+    card("PATCH","/admin/users/{user_id}/toggle-active","Enable or disable a user account",ADMIN_NOTE,
+      params([["user_id","UUID","path",true,"User UUID"]])+
+      json2("Response 200",{id:"user-uuid",email:"user@example.com",full_name:"Raj Kumar",role:"customer",is_active:false,is_verified:true,avatar_url:null,created_at:"2025-01-15T10:30:00Z"})
+    ),
+    card("GET","/admin/orders","List all orders with optional status filter",ADMIN_NOTE,
+      params([["status","string","query",false,"pending | confirmed | shipped | delivered | cancelled"],["page","integer","query",false,"Page (default: 1)"],["page_size","integer","query",false,"Per page (default: 20, max: 100)"]])+
+      json2("Response 200",{items:[],total:856,page:1,page_size:20,pages:43})
+    ),
+    card("PATCH","/admin/orders/{order_id}/status","Update order status + WhatsApp notification",ADMIN_NOTE,
+      params([["order_id","UUID","path",true,"Order UUID"],["tracking_id","string","query",false,"Courier tracking ID (for shipped status)"]])+
+      twoCol(
+        json2("Request body",{status:"shipped"}),
+        json2("Response 200","<OrderResponse with updated status>")
+      )
+    ),
+    card("GET","/admin/categories","List all categories including inactive",ADMIN_NOTE,
+      json2("Response 200","[...CategoryResponse array]")
+    ),
+    card("POST","/admin/categories","Create category",ADMIN_NOTE,
+      json2("Request body",{name:"Cashew Butter",description:"Smooth and crunchy spreads.",image_url:"https://cdn.example.com/butter.jpg"})
+    ),
+    card("PATCH","/admin/categories/{category_id}","Update category",ADMIN_NOTE,
+      params([["category_id","UUID","path",true,"Category UUID"]])
+    ),
+    card("DELETE","/admin/categories/{category_id}","Delete category",ADMIN_NOTE,
+      params([["category_id","UUID","path",true,"Category UUID"]])+
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+    card("GET","/admin/products","List all products including inactive",ADMIN_NOTE,
+      params([["page","integer","query",false,"Page (default: 1)"],["page_size","integer","query",false,"Per page (default: 20, max: 100)"]])
+    ),
+    card("POST","/admin/products","Create product",ADMIN_NOTE,
+      json2("Request body",{name:"Cashew Flour",description:"Fine cashew flour.",short_description:"Gluten-free alternative.",is_featured:false,category_id:"cat-uuid",variants:[{sku:"CF-500G",weight_grams:500,price:399,stock:100}]})
+    ),
+    card("PATCH","/admin/products/{product_id}","Update product",ADMIN_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"]])
+    ),
+    card("DELETE","/admin/products/{product_id}","Delete product",ADMIN_NOTE,
+      params([["product_id","UUID","path",true,"Product UUID"]])+
+      `<div class="sub-title">Response</div><div class="code-block">HTTP 204 No Content</div>`
+    ),
+  ]
+},
+
+};
+
+function showSection(key){
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>{
+    if(el.textContent.trim().toLowerCase().includes(key)||el.getAttribute('onclick').includes(`'${key}'`)) el.classList.add('active');
+  });
+  const s = sections[key];
+  let html = `<div class="section-title">${s.title}</div><div class="section-sub">${s.sub}</div>`;
+  html += s.endpoints.join('');
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function toggleEp(id){
+  const body = document.getElementById('body-'+id);
+  const chev = document.getElementById('chev-'+id);
+  const open = body.style.display==='block';
+  body.style.display = open?'none':'block';
+  chev.classList.toggle('open',!open);
+}
+
+showSection('auth');
+</script>

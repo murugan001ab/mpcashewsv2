@@ -93,6 +93,14 @@ class ProductVariantRepository(BaseRepository[ProductVariant]):
     def __init__(self, db: AsyncSession):
         super().__init__(ProductVariant, db)
 
+    async def get_with_product(self, variant_id: UUID) -> Optional[ProductVariant]:
+        result = await self.db.execute(
+            select(ProductVariant)
+            .options(selectinload(ProductVariant.product))
+            .where(ProductVariant.id == variant_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_sku(self, sku: str) -> Optional[ProductVariant]:
         result = await self.db.execute(
             select(ProductVariant).where(ProductVariant.sku == sku)

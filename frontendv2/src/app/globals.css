@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Brand tokens — ported as-is from the old frontend's index.css.
+   Tailwind v4 already reads these via @theme, so classes like
+   bg-brand-orange / text-brand-cream work unchanged, no
+   tailwind.config.ts needed. */
+@theme {
+  --color-brand-orange: #e8820c;
+  --color-brand-black: #111111;
+  --color-brand-brown: #7c4a1e;
+  --color-brand-cream: #fdf6ec;
+  --color-brand-green: #4a7c3f;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

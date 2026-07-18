@@ -1,12 +1,13 @@
-// src/profile/ReviewForm.jsx
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import api from "../../services/api";
-import { AuthContext } from "../../contexts/AuthContext";
+import { Star, Loader2, AlertCircle, MessageSquare } from "lucide-react";
 
+// NOTE: The backend does not currently implement a reviews API
+// (no app/api/v1/endpoints/reviews.py, no router registered in
+// app/api/v1/router.py). This will 404 until that endpoint is added.
 export default function ReviewForm({ productId, productName, onSubmitted }) {
-  const { accessToken } = useContext(AuthContext);
-
   const [rating, setRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -19,54 +20,88 @@ export default function ReviewForm({ productId, productName, onSubmitted }) {
     setError("");
 
     try {
-      // POST /api/feedback/reviews
-      await api.post(
-        "feedback/reviews",
-        { product_id: productId, rating, comment },
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
+      // Cookie auth is attached automatically via withCredentials.
+      await api.post("feedback/reviews", { product_id: productId, rating, comment });
 
       if (onSubmitted) onSubmitted(productId);
       setComment("");
     } catch (err) {
       console.error("Error submitting review:", err);
-      setError("Could not submit review. Try again.");
+      setError("Could not submit. Try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div>Rate &amp; Review</div>
-
-      <div>
-        {[1, 2, 3, 4, 5].map((value) => (
-          <label key={value}>
-            <input
-              type="radio"
-              name={`rating-${productId}`}
-              value={value}
-              checked={rating === value}
-              onChange={() => setRating(value)}
-            />
-            <span className={value <= rating ? "star filled" : "star"}>★</span>
-          </label>
-        ))}
+    <form 
+      onSubmit={handleSubmit} 
+      className="flex flex-col gap-3 bg-white p-4 rounded-2xl border border-brand-brown/10 shadow-sm w-full max-w-sm"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-brand-black uppercase tracking-widest flex items-center gap-1.5">
+          <MessageSquare size={14} className="text-brand-orange" />
+          Rate & Review
+        </span>
       </div>
 
+      {/* ── Interactive Stars ───────────────────────────────────────────── */}
+      <div className="flex items-center gap-1" onMouseLeave={() => setHoverRating(0)}>
+        {[1, 2, 3, 4, 5].map((value) => {
+          const isFilled = value <= (hoverRating || rating);
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setRating(value)}
+              onMouseEnter={() => setHoverRating(value)}
+              className="focus:outline-none transition-transform hover:scale-110"
+              aria-label={`Rate ${value} stars`}
+            >
+              <Star
+                size={22}
+                strokeWidth={isFilled ? 0 : 2}
+                fill={isFilled ? "currentColor" : "none"}
+                className={`${
+                  isFilled ? "text-brand-orange" : "text-brand-brown/20"
+                } transition-colors duration-200`}
+              />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Comment Box ─────────────────────────────────────────────────── */}
       <textarea
-       
         placeholder={`Write something about "${productName}" (optional)...`}
         value={comment}
         onChange={(e) => setComment(e.target.value)}
         rows={2}
+        className="w-full bg-gray-50 border border-brand-brown/10 rounded-xl px-3 py-2.5 text-xs text-brand-black font-medium focus:bg-white focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all resize-none placeholder:text-brand-brown/40"
       />
 
-      {error && <div>{error}</div>}
+      {/* ── Error State ─────────────────────────────────────────────────── */}
+      {error && (
+        <div className="flex items-center gap-1.5 text-[11px] font-bold text-red-500 bg-red-50 p-2 rounded-lg">
+          <AlertCircle size={12} strokeWidth={2.5} />
+          {error}
+        </div>
+      )}
 
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Submitting..." : "Submit Review"}
+      {/* ── Submit Action ───────────────────────────────────────────────── */}
+      <button 
+        type="submit" 
+        disabled={submitting}
+        className="w-full flex items-center justify-center gap-2 bg-brand-black hover:bg-brand-brown text-white text-xs font-bold py-2.5 rounded-xl transition-all duration-300 disabled:opacity-60 shadow-sm"
+      >
+        {submitting ? (
+          <>
+            <Loader2 size={14} className="animate-spin" />
+            Submitting...
+          </>
+        ) : (
+          "Submit Review"
+        )}
       </button>
     </form>
   );
