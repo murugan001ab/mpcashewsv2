@@ -1,35 +1,69 @@
 // src/utils/apiError.ts
-// FastAPI returns `detail` as a plain string for most errors, but as an
-// array of Pydantic validation-error objects ({ type, loc, msg, input, ctx })
-// for 422s. The old frontend's error handlers assumed `detail` was always a
-// string and rendered it directly — which throws "Objects are not valid as a
-// React child" the moment a 422 comes back. This normalizes either shape
-// into a plain string that's always safe to render.
-export function getErrorMessage(err: unknown, fallback = "Something went wrong"): string {
-  const detail = (
+
+type ValidationError = {
+  type?: string;
+  loc?: (string | number)[];
+  msg: string;
+  input?: unknown;
+  ctx?: Record<string, unknown>;
+};
+
+type ErrorResponse = {
+  detail?: string | ValidationError[];
+  message?: string;
+};
+
+export function getErrorMessage(
+  err: unknown,
+  fallback = "Something went wrong"
+): string {
+  const response = (
     err as {
-      response?: { data?: { detail?: unknown; message?: string } };
+      response?: {
+        data?: ErrorResponse;
+      };
     }
   )?.response?.data;
 
-  const d = detail?.detail;
+  if (!response) {
+    return fallback;
+  }
 
-  if (typeof d === "string") return d;
+  const { detail, message } = response;
 
-  if (Array.isArray(d)) {
-    return d
+  // FastAPI: {"detail": "Some error"}
+  if (typeof detail === "string") {
+    return detail;
+  }
+
+  // FastAPI validation error (422)
+  if (Array.isArray(detail)) {
+    return detail
       .map((item) => {
-        if (typeof item === "string") return item;
-        if (item && typeof item === "object" && "msg" in item) {
-          const loc = Array.isArray(item.loc) ? item.loc.filter((l) => l !== "body").join(".") : "";
-          return loc ? `${loc}: ${item.msg}` : String(item.msg);
+        if (typeof item === "string") {
+          return item;
         }
-        return JSON.stringify(item);
+
+        if (item && typeof item === "object") {
+          const loc = Array.isArray(item.loc)
+            ? item.loc
+                .filter((part) => part !== "body")
+                .map(String)
+                .join(".")
+            : "";
+
+          return loc ? `${loc}: ${item.msg}` : item.msg;
+        }
+
+        return String(item);
       })
       .join("; ");
   }
 
-  if (typeof detail?.message === "string") return detail.message;
+  // Other APIs
+  if (typeof message === "string") {
+    return message;
+  }
 
   return fallback;
 }
