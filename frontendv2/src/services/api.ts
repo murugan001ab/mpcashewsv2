@@ -5,7 +5,7 @@
 // over from a pre-cookie-auth version; dropped here on purpose.)
 import axios, { AxiosResponse, AxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "@/config/env";
-
+console.log(API_BASE_URL)
 const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,

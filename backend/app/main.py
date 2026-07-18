@@ -66,7 +66,7 @@ def create_application() -> FastAPI:
     application.add_middleware(LoggingMiddleware)
 
     # Static files
-    application.mount("/static", StaticFiles(directory="static"), name="static")
+    # application.mount("/static", StaticFiles(directory="static"), name="static")
 
     # API Router
     application.include_router(api_router, prefix="/api/v1")

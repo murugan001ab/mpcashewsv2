@@ -7,6 +7,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL as string;
 export const HOST = (process.env.NEXT_PUBLIC_HOST || "") as string;
 export const RAZORPAY_KEY_ID = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID as string;
 
+console.log(API_BASE_URL)
 /** Resolve a relative server path to an absolute URL */
 export const assetUrl = (path?: string | null): string | null => {
   if (!path) return null;
