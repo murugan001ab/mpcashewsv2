@@ -41,3 +41,5 @@ static/uploads/products/*
 alembic.ini
 alembic
 .env.production
+backend/.env.production
+backend/.env
