@@ -43,3 +43,5 @@ alembic
 .env.production
 backend/.env.production
 backend/.env
+
+.env*
