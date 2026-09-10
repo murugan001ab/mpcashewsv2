@@ -1,13 +1,11 @@
 // src/utils/localCart.ts
 // Guest cart stored in localStorage — used when the user is not logged in.
-// IMPORTANT: only import this from Client Components ('use client'), since
-// it touches `localStorage` which doesn't exist during SSR.
 
 const CART_KEY = "local_cart";
 
 export interface LocalCartItem {
-  id: string;
-  product_id: string;
+  id: number;
+  product_id: number;
   name: string;
   price: number;
   image?: string;
@@ -15,7 +13,6 @@ export interface LocalCartItem {
 }
 
 export const getLocalCart = (): LocalCartItem[] => {
-  if (typeof window === "undefined") return [];
   try {
     return JSON.parse(localStorage.getItem(CART_KEY) || "[]");
   } catch {
@@ -24,15 +21,12 @@ export const getLocalCart = (): LocalCartItem[] => {
 };
 
 export const saveLocalCart = (cart: LocalCartItem[]): void => {
-  if (typeof window === "undefined") return;
   localStorage.setItem(CART_KEY, JSON.stringify(cart));
 };
 
-export const addLocalItem = (
-  product: Omit<LocalCartItem, "quantity"> & { quantity?: number }
-): LocalCartItem[] => {
+export const addLocalItem = (product: Omit<LocalCartItem, "quantity"> & { quantity?: number }): LocalCartItem[] => {
   const cart = getLocalCart();
-  const index = cart.findIndex((i) => i.product_id === product.product_id);
+  const index = cart.findIndex(i => i.product_id === product.product_id);
   if (index >= 0) {
     cart[index].quantity += 1;
   } else {
@@ -42,21 +36,20 @@ export const addLocalItem = (
   return cart;
 };
 
-export const updateLocalItem = (productId: string, qty: number): LocalCartItem[] => {
+export const updateLocalItem = (productId: number, qty: number): LocalCartItem[] => {
   const cart = getLocalCart()
-    .map((i) => (i.product_id === productId ? { ...i, quantity: qty } : i))
-    .filter((i) => i.quantity > 0);
+    .map(i => (i.product_id === productId ? { ...i, quantity: qty } : i))
+    .filter(i => i.quantity > 0);
   saveLocalCart(cart);
   return cart;
 };
 
-export const removeLocalItem = (productId: string): LocalCartItem[] => {
-  const cart = getLocalCart().filter((i) => i.product_id !== productId);
+export const removeLocalItem = (productId: number): LocalCartItem[] => {
+  const cart = getLocalCart().filter(i => i.product_id !== productId);
   saveLocalCart(cart);
   return cart;
 };
 
 export const clearLocalCart = (): void => {
-  if (typeof window === "undefined") return;
   localStorage.removeItem(CART_KEY);
 };
