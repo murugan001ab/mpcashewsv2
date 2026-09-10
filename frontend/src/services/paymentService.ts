@@ -1,39 +1,31 @@
 // src/services/paymentService.ts
-// ─────────────────────────────────────────────────────────────────────────────
-// Maps every /api/v1/payments/* endpoint.
-// ─────────────────────────────────────────────────────────────────────────────
+import { post } from "./api";
 
-import { get, post } from "./api";
-import type {
-  RazorpayOrderResponse,
-  CreatePaymentPayload,
-  VerifyPaymentPayload,
-  RefundPayload,
-  PaymentRecord,
-  PaginatedResponse,
-} from "../types";
+export interface RazorpayOrderResponse {
+  razorpay_order_id: string;
+  amount: number; // paise
+  currency: string;
+  payment_id: string;
+}
 
-// POST /api/v1/payments/create
-export const createPaymentOrder = (
-  payload: CreatePaymentPayload
-): Promise<RazorpayOrderResponse> =>
-  post<RazorpayOrderResponse>("/payments/create", payload);
+export interface PaymentVerifyPayload {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
 
-// POST /api/v1/payments/verify
-export const verifyPayment = (
-  payload: VerifyPaymentPayload
-): Promise<{ message: string }> =>
-  post("/payments/verify", payload);
+export interface PaymentResponse {
+  id: string;
+  order_id: string;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  amount: string;
+  currency: string;
+  status: string;
+}
 
-// POST /api/v1/payments/refund
-export const requestRefund = (
-  payload: RefundPayload
-): Promise<{ message: string }> =>
-  post("/payments/refund", payload);
+export const createPaymentOrder = (orderId: string): Promise<RazorpayOrderResponse> =>
+  post<RazorpayOrderResponse>("/payments/create", { order_id: orderId });
 
-// GET /api/v1/payments/history
-export const getPaymentHistory = (params?: {
-  page?: number;
-  size?: number;
-}): Promise<PaginatedResponse<PaymentRecord>> =>
-  get<PaginatedResponse<PaymentRecord>>("/payments/history", { params });
+export const verifyPayment = (data: PaymentVerifyPayload): Promise<PaymentResponse> =>
+  post<PaymentResponse>("/payments/verify", data);

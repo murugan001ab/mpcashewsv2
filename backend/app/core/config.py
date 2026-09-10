@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "static/uploads"
     MAX_FILE_SIZE_MB: int = 5
 
+    # ImageKit.io (image hosting/CDN) — https://imagekit.io/dashboard/developer/api-keys
+    IMAGEKIT_PRIVATE_KEY: str = ""
+    IMAGEKIT_PUBLIC_KEY: str = ""
+    IMAGEKIT_URL_ENDPOINT: str = ""
+
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 60
 

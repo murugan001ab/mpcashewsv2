@@ -1,6 +1,8 @@
 from uuid import UUID
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.wishlist import Wishlist, WishlistItem
@@ -14,11 +16,26 @@ class WishlistService:
         self.product_repo = ProductRepository(db)
 
     async def _get_or_create(self, user_id: UUID) -> Wishlist:
-        wishlist = await self.wishlist_repo.get_by_user(user_id)
-        if not wishlist:
-            wishlist = Wishlist(user_id=user_id)
-            wishlist = await self.wishlist_repo.create(wishlist)
-        return wishlist
+        """
+        Atomically get or create a wishlist for the user using
+        INSERT ... ON CONFLICT DO NOTHING — same fix CartService applies for
+        the identical race. Wishlist.user_id is unique=True, so two
+        concurrent "add to wishlist" requests (double-click, two tabs) that
+        both hit this method for a user's first-ever wishlist item used to
+        both try to INSERT a new Wishlist row and one would fail with
+        UniqueViolationError.
+        """
+        now = datetime.now(timezone.utc)
+
+        stmt = (
+            pg_insert(Wishlist)
+            .values(user_id=user_id, created_at=now)
+            .on_conflict_do_nothing(index_elements=["user_id"])
+        )
+        await self.wishlist_repo.db.execute(stmt)
+        await self.wishlist_repo.db.flush()
+
+        return await self.wishlist_repo.get_by_user(user_id)
 
     async def add_product(self, user_id: UUID, product_id: UUID) -> Wishlist:
         product = await self.product_repo.get_by_id(product_id)

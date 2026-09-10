@@ -33,9 +33,20 @@ class BaseRepository(Generic[ModelType]):
         return obj
 
     async def update(self, obj: ModelType, data: dict) -> ModelType:
+        """
+        Apply every key in `data` to `obj`.
+
+        NOTE: this used to skip any key whose value was `None`, which meant
+        a field could never be explicitly cleared back to NULL (e.g.
+        removing a review's admin_reply, or blanking an optional address
+        line) — the update would silently no-op for that field. Callers that
+        only want to touch the fields the client actually sent should filter
+        with `.model_dump(exclude_none=True)` *before* calling this (which
+        is what every current call site already does); this method itself
+        should apply whatever it's given, including an intentional None.
+        """
         for key, value in data.items():
-            if value is not None:
-                setattr(obj, key, value)
+            setattr(obj, key, value)
         await self.db.flush()
         await self.db.refresh(obj)
         return obj

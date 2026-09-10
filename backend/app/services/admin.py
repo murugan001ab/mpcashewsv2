@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
 from app.models.order import Order, OrderStatus
-from app.models.product import Product
+from app.models.product import Product, ProductVariant
 from app.models.payment import Payment, PaymentStatus
 from app.repositories.order import OrderRepository
 from app.repositories.product import ProductRepository
@@ -34,8 +34,16 @@ class AdminService:
         )
         pending_orders = pending_result.scalar_one()
 
+        # Stock lives on ProductVariant, not Product — Product has no stock column.
         low_stock_result = await self.db.execute(
-            select(func.count()).select_from(Product).where(Product.stock <= 10, Product.is_active == True)
+            select(func.count())
+            .select_from(ProductVariant)
+            .join(Product, Product.id == ProductVariant.product_id)
+            .where(
+                ProductVariant.stock <= 10,
+                ProductVariant.is_active == True,
+                Product.is_active == True,
+            )
         )
         low_stock_products = low_stock_result.scalar_one()
 
@@ -80,23 +88,27 @@ class AdminService:
         return {"items": orders, **paginate(total, page, page_size)}
 
     async def get_inventory_report(self) -> list:
+        # Stock/SKU live on ProductVariant, not Product — join to report per-variant.
         result = await self.db.execute(
-            select(Product).where(Product.is_active == True).order_by(Product.stock.asc())
+            select(ProductVariant, Product.name)
+            .join(Product, Product.id == ProductVariant.product_id)
+            .where(ProductVariant.is_active == True, Product.is_active == True)
+            .order_by(ProductVariant.stock.asc())
         )
-        products = result.scalars().all()
+        rows = result.all()
         report = []
-        for p in products:
-            if p.stock == 0:
+        for variant, product_name in rows:
+            if variant.stock == 0:
                 status = "out"
-            elif p.stock <= 10:
+            elif variant.stock <= 10:
                 status = "low"
             else:
                 status = "ok"
             report.append(InventoryReport(
-                product_id=str(p.id),
-                name=p.name,
-                sku=p.sku,
-                stock=p.stock,
+                product_id=str(variant.product_id),
+                name=f"{product_name} ({variant.weight_grams}g)",
+                sku=variant.sku,
+                stock=variant.stock,
                 status=status,
             ))
         return report

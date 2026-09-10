@@ -33,6 +33,7 @@ class Order(Base):
     tax_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     shipping_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
     discount_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0)
+    coupon_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -43,6 +44,10 @@ class Order(Base):
     items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     payment: Mapped["Payment"] = relationship("Payment", back_populates="order", uselist=False)
     delivery: Mapped["Delivery"] = relationship("Delivery", back_populates="order", uselist=False)
+    status_history: Mapped[list["OrderStatusHistory"]] = relationship(
+        "OrderStatusHistory", back_populates="order", cascade="all, delete-orphan",
+        order_by="OrderStatusHistory.created_at",
+    )
 
 
 class OrderItem(Base):
@@ -51,6 +56,9 @@ class OrderItem(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False)
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
+    variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("product_variants.id"), nullable=True
+    )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     total_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
@@ -59,3 +67,23 @@ class OrderItem(Base):
 
     order: Mapped["Order"] = relationship("Order", back_populates="items")
     product: Mapped["Product"] = relationship("Product", back_populates="order_items")
+    variant: Mapped["ProductVariant"] = relationship("ProductVariant", lazy="selectin")
+
+
+class OrderStatusHistory(Base):
+    """Append-only log of every status an order has passed through, so the
+    user-facing order-tracking timeline has real timestamps to show instead
+    of just the current status."""
+
+    __tablename__ = "order_status_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
+    status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    order: Mapped["Order"] = relationship("Order", back_populates="status_history")
+
+    def __repr__(self) -> str:
+        return f"<OrderStatusHistory order_id={self.order_id} status={self.status}>"

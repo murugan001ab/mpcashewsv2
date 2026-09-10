@@ -1,11 +1,7 @@
 // src/services/addressService.ts
-//
-// Backend (app/schemas/address.py) uses: full_name, phone, postal_code.
-// The UI uses: name, phone_number, pincode.
-// This service is the single place that translates between the two so
-// every screen can keep using the friendlier UI field names without
-// triggering 422s from the API.
-import { getData, postData, deleteData, patchData } from "./api";
+// Translates between UI field names (name, phone_number, pincode) and
+// backend field names (full_name, phone, postal_code) to avoid 422s.
+import { get, post, patch, del } from "./api";
 
 export interface Address {
   id: string | number;
@@ -31,7 +27,6 @@ interface ApiAddress {
   postal_code: string;
   country: string;
   is_default: boolean;
-  created_at?: string;
 }
 
 const fromApi = (a: ApiAddress): Address => ({
@@ -47,7 +42,7 @@ const fromApi = (a: ApiAddress): Address => ({
   is_default: a.is_default,
 });
 
-const toApi = (a: Partial<Address>) => {
+const toApi = (a: Partial<Address>): Record<string, unknown> => {
   const payload: Record<string, unknown> = {};
   if (a.name !== undefined) payload.full_name = a.name;
   if (a.phone_number !== undefined) payload.phone = a.phone_number;
@@ -61,33 +56,23 @@ const toApi = (a: Partial<Address>) => {
   return payload;
 };
 
-// GET /api/v1/users/me/addresses
-export const getAddresses = async (_token?: string): Promise<Address[]> => {
-  const list = await getData<ApiAddress[]>("users/me/addresses");
+export const getAddresses = async (): Promise<Address[]> => {
+  const list = await get<ApiAddress[]>("users/me/addresses");
   return (list || []).map(fromApi);
 };
 
-// POST /api/v1/users/me/addresses
-export const addAddress = async (
-  _token: string | undefined,
-  data: Omit<Address, "id">
-): Promise<Address> => {
-  const created = await postData<ApiAddress>("users/me/addresses", toApi(data));
+export const addAddress = async (data: Omit<Address, "id">): Promise<Address> => {
+  const created = await post<ApiAddress>("users/me/addresses", toApi(data));
   return fromApi(created);
 };
 
-// PATCH /api/v1/users/me/addresses/{id}
 export const updateAddress = async (
-  _token: string | undefined,
   id: string | number,
   data: Partial<Address>
 ): Promise<Address> => {
-  const updated = await patchData<ApiAddress>(`users/me/addresses/${id}`, toApi(data));
+  const updated = await patch<ApiAddress>(`users/me/addresses/${id}`, toApi(data));
   return fromApi(updated);
 };
 
-// DELETE /api/v1/users/me/addresses/{id}
-export const deleteAddressById = (
-  _token: string | undefined,
-  id: string | number
-): Promise<unknown> => deleteData(`users/me/addresses/${id}`);
+export const deleteAddressById = (id: string | number): Promise<unknown> =>
+  del(`users/me/addresses/${id}`);

@@ -65,9 +65,9 @@ class PaymentService:
             "payment_id": payment.id,
         }
 
-    async def verify_payment(self, data: PaymentVerify) -> Payment:
+    async def verify_payment(self, user_id: UUID, data: PaymentVerify) -> Payment:
         payment = await self.payment_repo.get_by_razorpay_order_id(data.razorpay_order_id)
-        if not payment:
+        if not payment or payment.user_id != user_id:
             raise HTTPException(status_code=404, detail="Payment not found")
 
         # Verify signature
@@ -104,6 +104,11 @@ class PaymentService:
             raise HTTPException(status_code=400, detail="Payment is not eligible for refund")
 
         refund_amount = data.amount or payment.amount
+        if refund_amount > payment.amount:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Refund amount cannot exceed the paid amount (₹{payment.amount})",
+            )
         refund_paise = int(refund_amount * 100)
 
         refund = self.client.payment.refund(
@@ -118,9 +123,19 @@ class PaymentService:
             else PaymentStatus.PARTIALLY_REFUNDED
         )
 
-        order = await self.order_repo.get_by_id(payment.order_id)  # type: ignore
+        order = await self.order_repo.get_with_relations(payment.order_id)  # type: ignore
         if order and refund_amount >= payment.amount:
+            already_refunded = order.status == OrderStatus.REFUNDED
             order.status = OrderStatus.REFUNDED
+            if not already_refunded:
+                # Restore stock for a full refund, same as OrderService does
+                # for admin-driven cancellations/refunds.
+                for item in order.items:
+                    if item.variant_id:
+                        from app.repositories.product import ProductVariantRepository
+                        await ProductVariantRepository(self.payment_repo.db).update_stock(
+                            item.variant_id, item.quantity
+                        )
 
         await self.payment_repo.db.flush()
         return payment

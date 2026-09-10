@@ -16,6 +16,7 @@ import logging
 from typing import Optional
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 
@@ -27,10 +28,34 @@ WA_API_URL = "https://graph.facebook.com/v19.0/{phone_number_id}/messages"
 class WhatsAppService:
     """Thin async wrapper around Meta WhatsApp Cloud API."""
 
-    def __init__(self):
+    def __init__(self, db: Optional[AsyncSession] = None):
         self.token = settings.WHATSAPP_ACCESS_TOKEN
         self.phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
         self.url = WA_API_URL.format(phone_number_id=self.phone_number_id)
+        # When a db session is provided, template name/language are resolved
+        # from the admin-editable WhatsAppTemplate table (falls back to the
+        # .env defaults automatically if no row exists yet).
+        self.db = db
+
+    async def _resolve_template(self, key: str) -> tuple[str, str]:
+        if self.db is not None:
+            try:
+                from app.services.template import get_whatsapp_template_config
+                return await get_whatsapp_template_config(self.db, key)
+            except Exception as exc:
+                logger.warning("Falling back to .env WhatsApp template for '%s': %s", key, exc)
+        # No db session available (or lookup failed) — use .env defaults.
+        fallback = {
+            "order_confirmed": settings.WA_TEMPLATE_ORDER_CONFIRMED,
+            "order_shipped": settings.WA_TEMPLATE_ORDER_SHIPPED,
+            "order_cancelled": settings.WA_TEMPLATE_ORDER_CANCELLED,
+            "order_delivered": settings.WA_TEMPLATE_ORDER_DELIVERED,
+            "order_out_for_delivery": settings.WA_TEMPLATE_ORDER_OUT_DELIVERY,
+            "otp": settings.WA_TEMPLATE_OTP,
+        }.get(key)
+        if not fallback:
+            raise ValueError(f"Unknown WhatsApp template key: {key}")
+        return fallback, settings.WA_TEMPLATE_LANGUAGE
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -100,10 +125,11 @@ class WhatsAppService:
     async def send_order_confirmed(
         self, phone: str, customer_name: str, order_number: str, total_amount: str
     ) -> bool:
+        template_name, language_code = await self._resolve_template("order_confirmed")
         payload = self._template_payload(
             phone,
-            template_name=settings.WA_TEMPLATE_ORDER_CONFIRMED,
-            language_code=settings.WA_TEMPLATE_LANGUAGE,
+            template_name=template_name,
+            language_code=language_code,
             components=[self._body_component(customer_name, order_number, total_amount)],
         )
         return await self._send(payload)
@@ -111,10 +137,11 @@ class WhatsAppService:
     async def send_order_shipped(
         self, phone: str, customer_name: str, order_number: str, tracking_id: str = "N/A"
     ) -> bool:
+        template_name, language_code = await self._resolve_template("order_shipped")
         payload = self._template_payload(
             phone,
-            template_name=settings.WA_TEMPLATE_ORDER_SHIPPED,
-            language_code=settings.WA_TEMPLATE_LANGUAGE,
+            template_name=template_name,
+            language_code=language_code,
             components=[self._body_component(customer_name, order_number, tracking_id)],
         )
         return await self._send(payload)
@@ -122,10 +149,11 @@ class WhatsAppService:
     async def send_order_cancelled(
         self, phone: str, customer_name: str, order_number: str
     ) -> bool:
+        template_name, language_code = await self._resolve_template("order_cancelled")
         payload = self._template_payload(
             phone,
-            template_name=settings.WA_TEMPLATE_ORDER_CANCELLED,
-            language_code=settings.WA_TEMPLATE_LANGUAGE,
+            template_name=template_name,
+            language_code=language_code,
             components=[self._body_component(customer_name, order_number)],
         )
         return await self._send(payload)
@@ -133,10 +161,11 @@ class WhatsAppService:
     async def send_order_delivered(
         self, phone: str, customer_name: str, order_number: str
     ) -> bool:
+        template_name, language_code = await self._resolve_template("order_delivered")
         payload = self._template_payload(
             phone,
-            template_name=settings.WA_TEMPLATE_ORDER_DELIVERED,
-            language_code=settings.WA_TEMPLATE_LANGUAGE,
+            template_name=template_name,
+            language_code=language_code,
             components=[self._body_component(customer_name, order_number)],
         )
         return await self._send(payload)
@@ -144,10 +173,11 @@ class WhatsAppService:
     async def send_order_out_for_delivery(
         self, phone: str, customer_name: str, order_number: str
     ) -> bool:
+        template_name, language_code = await self._resolve_template("order_out_for_delivery")
         payload = self._template_payload(
             phone,
-            template_name=settings.WA_TEMPLATE_ORDER_OUT_DELIVERY,
-            language_code=settings.WA_TEMPLATE_LANGUAGE,
+            template_name=template_name,
+            language_code=language_code,
             components=[self._body_component(customer_name, order_number)],
         )
         return await self._send(payload)
@@ -158,10 +188,11 @@ class WhatsAppService:
 
     async def send_otp(self, phone: str, otp_code: str) -> bool:
         """Send OTP via WhatsApp template (otp_verification template)."""
+        template_name, language_code = await self._resolve_template("otp")
         payload = self._template_payload(
             phone,
-            template_name=settings.WA_TEMPLATE_OTP,
-            language_code=settings.WA_TEMPLATE_LANGUAGE,
+            template_name=template_name,
+            language_code=language_code,
             components=[self._body_component(otp_code)],
         )
         return await self._send(payload)

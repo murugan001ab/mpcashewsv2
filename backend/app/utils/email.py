@@ -6,6 +6,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import aiosmtplib
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 
@@ -36,9 +37,21 @@ async def send_email(to_email: str, subject: str, html_body: str) -> bool:
         return False
 
 
-async def send_verification_email(to_email: str, token: str) -> bool:
-    """Send the email-verification link to a newly registered user."""
+async def send_verification_email(to_email: str, token: str, db: "AsyncSession | None" = None) -> bool:
+    """Send the email-verification link to a newly registered user.
+
+    Uses the admin-editable "verification_email" template from the DB when
+    available (and a `db` session is passed in); otherwise falls back to the
+    hardcoded default below so this never breaks if templates aren't seeded
+    yet or `db` isn't supplied.
+    """
     verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    render_vars = {
+        "app_name": settings.SMTP_FROM_NAME,
+        "verify_url": verify_url,
+        "expire_hours": settings.EMAIL_VERIFY_EXPIRE_HOURS,
+    }
+
     subject = f"Verify your {settings.SMTP_FROM_NAME} account"
     html_body = f"""
     <html>
@@ -61,4 +74,15 @@ async def send_verification_email(to_email: str, token: str) -> bool:
       </body>
     </html>
     """
+
+    if db is not None:
+        try:
+            from app.services.template import get_email_template, render_template
+            tpl = await get_email_template(db, "verification_email")
+            if tpl:
+                subject = render_template(tpl.subject, **render_vars)
+                html_body = render_template(tpl.html_body, **render_vars)
+        except Exception as exc:
+            logger.warning("Falling back to default verification email template: %s", exc)
+
     return await send_email(to_email, subject, html_body)

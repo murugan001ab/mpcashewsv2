@@ -149,15 +149,19 @@ async def google_login(db: AsyncSession = Depends(get_db)):
     return {"authorization_url": url}
 
 
-@router.get("/google/callback", response_model=TokenResponse)
+@router.get("/google/callback")
 async def google_callback(
     code: str,
-    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
-    """Google OAuth callback handler. Sets HttpOnly cookies on success."""
+    """
+    Google OAuth callback handler.
+
+    Sets HttpOnly access/refresh cookies on success, then redirects the
+    browser to `{FRONTEND_URL}/auth/success` (no tokens in the URL).
+    """
     service = AuthService(db)
-    return await service.google_callback(code, response)
+    return await service.google_callback(code)
 
 
 # ---------------------------------------------------------------------------

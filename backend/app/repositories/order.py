@@ -5,7 +5,8 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.order import Order, OrderItem, OrderStatus
+from app.models.order import Order, OrderItem, OrderStatus, OrderStatusHistory
+from app.models.product import Product
 from app.repositories.base import BaseRepository
 
 
@@ -13,19 +14,27 @@ class OrderRepository(BaseRepository[Order]):
     def __init__(self, db: AsyncSession):
         super().__init__(Order, db)
 
+    def _order_item_product_options(self):
+        # Every field ProductListResponse serializes must be eager-loaded
+        # here — accessing an un-loaded relationship during Pydantic's
+        # from_attributes serialization raises MissingGreenlet in async
+        # SQLAlchemy (no implicit lazy-load in an async context), which
+        # surfaces to the client as an unhandled 500.
+        return (
+            selectinload(Order.items).selectinload(OrderItem.product).selectinload(Product.images),
+            selectinload(Order.items).selectinload(OrderItem.product).selectinload(Product.category),
+            selectinload(Order.items).selectinload(OrderItem.product).selectinload(Product.variants),
+        )
+
     async def get_with_relations(self, order_id: UUID) -> Optional[Order]:
         result = await self.db.execute(
             select(Order)
             .options(
-                selectinload(Order.items).selectinload(OrderItem.product).selectinload(
-                    __import__("app.models.product", fromlist=["Product"]).Product.images
-                ),
-                selectinload(Order.items).selectinload(OrderItem.product).selectinload(
-                    __import__("app.models.product", fromlist=["Product"]).Product.category
-                ),
+                *self._order_item_product_options(),
                 selectinload(Order.address),
                 selectinload(Order.payment),
                 selectinload(Order.delivery),
+                selectinload(Order.user),
             )
             .where(Order.id == order_id)
         )
@@ -46,12 +55,7 @@ class OrderRepository(BaseRepository[Order]):
         result = await self.db.execute(
             select(Order)
             .options(
-                selectinload(Order.items).selectinload(OrderItem.product).selectinload(
-                    __import__("app.models.product", fromlist=["Product"]).Product.images
-                ),
-                selectinload(Order.items).selectinload(OrderItem.product).selectinload(
-                    __import__("app.models.product", fromlist=["Product"]).Product.category
-                ),
+                *self._order_item_product_options(),
                 selectinload(Order.address),
             )
             .where(Order.user_id == user_id)
@@ -65,8 +69,8 @@ class OrderRepository(BaseRepository[Order]):
         self, status: Optional[OrderStatus] = None, skip: int = 0, limit: int = 20
     ) -> Tuple[List[Order], int]:
         stmt = select(Order).options(
+            *self._order_item_product_options(),
             selectinload(Order.address),
-            selectinload(Order.items),
         )
         count_stmt = select(func.count()).select_from(Order)
         if status:
@@ -78,6 +82,22 @@ class OrderRepository(BaseRepository[Order]):
 
         result = await self.db.execute(stmt.order_by(Order.created_at.desc()).offset(skip).limit(limit))
         return list(result.scalars().all()), total
+
+    async def add_status_history(
+        self, order_id: UUID, status: OrderStatus, note: Optional[str] = None
+    ) -> OrderStatusHistory:
+        entry = OrderStatusHistory(order_id=order_id, status=status, note=note)
+        self.db.add(entry)
+        await self.db.flush()
+        return entry
+
+    async def get_status_history(self, order_id: UUID) -> List[OrderStatusHistory]:
+        result = await self.db.execute(
+            select(OrderStatusHistory)
+            .where(OrderStatusHistory.order_id == order_id)
+            .order_by(OrderStatusHistory.created_at)
+        )
+        return list(result.scalars().all())
 
     async def get_revenue_stats(self):
         from sqlalchemy import extract

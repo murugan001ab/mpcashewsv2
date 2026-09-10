@@ -20,6 +20,7 @@ class WishlistRepository(BaseRepository[Wishlist]):
             .options(
                 selectinload(Wishlist.items).selectinload(WishlistItem.product).selectinload(Product.images),
                 selectinload(Wishlist.items).selectinload(WishlistItem.product).selectinload(Product.category),
+                selectinload(Wishlist.items).selectinload(WishlistItem.product).selectinload(Product.variants),
             )
             .where(Wishlist.user_id == user_id)
         )

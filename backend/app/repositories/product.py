@@ -1,7 +1,7 @@
 from typing import Optional, List, Tuple
 from uuid import UUID
 
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,13 +62,14 @@ class ProductRepository(BaseRepository[Product]):
         is_featured: Optional[bool] = None,
         skip: int = 0,
         limit: int = 20,
+        include_inactive: bool = False,
     ) -> Tuple[List[Product], int]:
-        stmt = (
-            select(Product)
-            .options(*self._with_relations())
-            .where(Product.is_active == True)
-        )
-        count_stmt = select(func.count()).select_from(Product).where(Product.is_active == True)
+        stmt = select(Product).options(*self._with_relations())
+        count_stmt = select(func.count()).select_from(Product)
+
+        if not include_inactive:
+            stmt = stmt.where(Product.is_active == True)
+            count_stmt = count_stmt.where(Product.is_active == True)
 
         if query:
             search = f"%{query}%"
@@ -127,8 +128,42 @@ class ProductVariantRepository(BaseRepository[ProductVariant]):
         return result.scalar_one_or_none()
 
     async def update_stock(self, variant_id: UUID, quantity_delta: int) -> Optional[ProductVariant]:
-        variant = await self.get_by_id(variant_id)
-        if variant:
-            variant.stock += quantity_delta
-            await self.db.flush()
-        return variant
+        """
+        Atomically adjust stock at the database level.
+
+        Previously this did a plain read-modify-write (`variant.stock +=
+        delta` then flush), which is a classic check-then-act race: under
+        concurrent checkouts for the same low-stock variant, two requests
+        could both read the same stock value, both pass validation, and both
+        decrement — driving stock negative (overselling).
+
+        The UPDATE below folds the read, the guard, and the write into one
+        atomic statement: `WHERE stock + delta >= 0` means a decrement that
+        would take stock below zero simply matches zero rows instead of
+        racing another request. Positive deltas (restocks/refunds) always
+        satisfy the guard.
+        """
+        from fastapi import HTTPException
+
+        stmt = (
+            update(ProductVariant)
+            .where(
+                ProductVariant.id == variant_id,
+                (ProductVariant.stock + quantity_delta) >= 0,
+            )
+            .values(stock=ProductVariant.stock + quantity_delta)
+            .returning(ProductVariant.id)
+        )
+        result = await self.db.execute(stmt)
+        updated_id = result.scalar_one_or_none()
+
+        if updated_id is None:
+            # Either the variant doesn't exist, or (for a decrement) stock
+            # ran out between the caller's earlier check and this write —
+            # surface that clearly instead of silently no-op'ing.
+            if quantity_delta < 0:
+                raise HTTPException(status_code=400, detail="Insufficient stock — please try again")
+            return None
+
+        await self.db.flush()
+        return await self.get_by_id(variant_id)

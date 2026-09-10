@@ -12,7 +12,7 @@ from app.schemas.product import (
     CategoryCreate, CategoryUpdate,
 )
 from app.utils.slugify import slugify
-from app.utils.file_upload import save_upload_file, delete_upload_file
+from app.utils.imagekit import upload_image as ik_upload_image, delete_image as ik_delete_image
 from app.utils.pagination import paginate, get_skip_limit
 
 
@@ -101,6 +101,7 @@ class ProductService:
         is_featured: Optional[bool] = None,
         page: int = 1,
         page_size: int = 20,
+        include_inactive: bool = False,
     ) -> dict:
         skip, limit = get_skip_limit(page, page_size)
         products, total = await self.repo.search_products(
@@ -109,6 +110,7 @@ class ProductService:
             is_featured=is_featured,
             skip=skip,
             limit=limit,
+            include_inactive=include_inactive,
         )
         return {"items": products, **paginate(total, page, page_size)}
 
@@ -144,13 +146,14 @@ class ProductService:
 
     async def upload_image(self, product_id: UUID, file: UploadFile, is_primary: bool = False) -> ProductImage:
         product = await self.get_by_id(product_id)
-        url = await save_upload_file(file, "products")
+        url, file_id = await ik_upload_image(file, folder="products")
         if is_primary:
             for img in product.images:
                 img.is_primary = False
         image = ProductImage(
             product_id=product_id,
             url=url,
+            file_id=file_id,
             is_primary=is_primary or len(product.images) == 0,
             sort_order=len(product.images),
         )
@@ -170,7 +173,7 @@ class ProductService:
         image = result.scalar_one_or_none()
         if not image:
             raise HTTPException(status_code=404, detail="Image not found")
-        await delete_upload_file(image.url)
+        await ik_delete_image(image.file_id)
         await self.repo.db.delete(image)
         await self.repo.db.flush()
 

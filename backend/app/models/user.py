@@ -37,6 +37,7 @@ class User(Base):
     wishlist: Mapped["Wishlist"] = relationship("Wishlist", back_populates="user", uselist=False, cascade="all, delete-orphan")
     orders: Mapped[list["Order"]] = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     payments: Mapped[list["Payment"]] = relationship("Payment", back_populates="user")
+    reviews: Mapped[list["Review"]] = relationship("Review", back_populates="user", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_users_email_active", "email", "is_active"),

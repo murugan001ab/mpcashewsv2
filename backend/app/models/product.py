@@ -51,6 +51,7 @@ class Product(Base):
     cart_items: Mapped[list["CartItem"]] = relationship("CartItem", back_populates="product")
     wishlist_items: Mapped[list["WishlistItem"]] = relationship("WishlistItem", back_populates="product")
     order_items: Mapped[list["OrderItem"]] = relationship("OrderItem", back_populates="product")
+    reviews: Mapped[list["Review"]] = relationship("Review", back_populates="product", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("ix_products_name_active", "name", "is_active"),
@@ -91,6 +92,7 @@ class ProductImage(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
     url: Mapped[str] = mapped_column(String(500), nullable=False)
+    file_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     alt_text: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)

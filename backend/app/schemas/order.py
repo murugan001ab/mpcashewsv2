@@ -5,13 +5,14 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.models.order import OrderStatus
-from app.schemas.product import ProductListResponse
+from app.schemas.product import ProductListResponse, ProductVariantResponse
 from app.schemas.address import AddressResponse
 
 
 class OrderItemResponse(BaseModel):
     id: uuid.UUID
     product: ProductListResponse
+    variant: Optional[ProductVariantResponse] = None
     quantity: int
     unit_price: Decimal
     total_price: Decimal
@@ -24,6 +25,7 @@ class OrderItemResponse(BaseModel):
 class OrderCreate(BaseModel):
     address_id: uuid.UUID
     notes: Optional[str] = None
+    coupon_code: Optional[str] = None
 
 
 class OrderResponse(BaseModel):
@@ -34,6 +36,7 @@ class OrderResponse(BaseModel):
     tax_amount: Decimal
     shipping_amount: Decimal
     discount_amount: Decimal
+    coupon_code: Optional[str] = None
     total_amount: Decimal
     notes: Optional[str] = None
     items: List[OrderItemResponse] = []
@@ -54,3 +57,22 @@ class PaginatedOrders(BaseModel):
     page: int
     page_size: int
     pages: int
+
+
+class OrderTrackingStep(BaseModel):
+    status: OrderStatus
+    label: str
+    note: Optional[str] = None
+    timestamp: Optional[datetime] = None
+    completed: bool
+
+
+class OrderTrackingResponse(BaseModel):
+    order_id: uuid.UUID
+    order_number: str
+    current_status: OrderStatus
+    steps: List[OrderTrackingStep]
+    awb_code: Optional[str] = None
+    courier_name: Optional[str] = None
+    courier_tracking_url: Optional[str] = None
+    estimated_delivery: Optional[datetime] = None

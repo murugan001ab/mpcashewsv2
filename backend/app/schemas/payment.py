@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.payment import PaymentStatus
 
@@ -26,7 +26,7 @@ class PaymentVerify(BaseModel):
 
 class RefundRequest(BaseModel):
     payment_id: uuid.UUID
-    amount: Optional[Decimal] = None  # None = full refund
+    amount: Optional[Decimal] = Field(default=None, gt=0)  # None = full refund
 
 
 class PaymentResponse(BaseModel):

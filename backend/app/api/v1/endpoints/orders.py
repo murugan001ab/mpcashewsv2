@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.order import OrderCreate, OrderResponse, PaginatedOrders
+from app.schemas.order import OrderCreate, OrderResponse, OrderTrackingResponse, PaginatedOrders
 from app.services.order import OrderService
 
 router = APIRouter()
@@ -44,6 +44,18 @@ async def get_order(
     """Get a specific order by ID."""
     service = OrderService(db)
     return await service.get_order(current_user.id, order_id)
+
+
+@router.get("/{order_id}/track", response_model=OrderTrackingResponse)
+async def track_order(
+    order_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the status timeline for an order, for the order page's "track
+    order" view. Falls back gracefully when no courier shipment exists yet."""
+    service = OrderService(db)
+    return await service.get_tracking(current_user.id, order_id)
 
 
 @router.post("/{order_id}/cancel", response_model=OrderResponse)

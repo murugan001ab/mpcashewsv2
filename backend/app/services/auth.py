@@ -7,6 +7,7 @@ from uuid import UUID
 
 import httpx
 from fastapi import HTTPException, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +39,7 @@ class AuthService:
     def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
         self.db = db
-        self.wa = WhatsAppService()
+        self.wa = WhatsAppService(db=db)
 
     # ------------------------------------------------------------------
     # Registration — email + password only
@@ -103,7 +104,7 @@ class AuthService:
         self.db.add(ev)
         await self.db.flush()
 
-        await send_verification_email(user.email, token)
+        await send_verification_email(user.email, token, db=self.db)
 
     async def verify_email(self, token: str) -> dict:
         """Mark a user's email as verified using the token from the link."""
@@ -210,7 +211,7 @@ class AuthService:
         from urllib.parse import urlencode
         return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
 
-    async def google_callback(self, code: str, response: Response) -> dict:
+    async def google_callback(self, code: str) -> RedirectResponse:
         async with httpx.AsyncClient() as client:
             token_resp = await client.post(
                 GOOGLE_TOKEN_URL,
@@ -259,7 +260,20 @@ class AuthService:
                 )
                 user = await self.user_repo.create(user)
 
-        return await self._issue_tokens(user, response)
+        frontend_url = f"{settings.FRONTEND_URL.rstrip('/')}/auth/success"
+        redirect_response = RedirectResponse(url=frontend_url, status_code=status.HTTP_302_FOUND)
+
+        # Set cookies directly on the response we're actually returning.
+        # FastAPI does NOT reliably merge Set-Cookie headers from the
+        # injected `response` dependency onto a Response object (like this
+        # RedirectResponse) that's returned directly from the endpoint —
+        # that was the real bug here: the redirect itself worked fine, but
+        # the cookies never reached the browser, so the very next call
+        # (GET /users/me on the frontend's /auth/success page) got a 401
+        # even though the user row had already been committed to the DB.
+        await self._issue_tokens(user, redirect_response)
+
+        return redirect_response
 
     async def _issue_tokens(self, user: User, response: Response) -> dict:
         """

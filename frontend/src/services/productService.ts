@@ -1,8 +1,4 @@
 // src/services/productService.ts
-// ─────────────────────────────────────────────────────────────────────────────
-// Maps every /api/v1/products/* and /api/v1/categories/* endpoint.
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { get, post, patch, del, postForm } from "./api";
 import type {
   Product,
@@ -11,68 +7,57 @@ import type {
   Category,
   CategoryPayload,
   PaginatedResponse,
-} from "../types";
+  Variant,
+  ProductVariantPayload,
+  AdminProductCreatePayload,
+  ProductImage,
+} from "@/types";
 
-// ── Products ──────────────────────────────────────────────────────────────────
-// GET /api/v1/products
-export const listProducts = (
-  params?: ProductListParams
-): Promise<PaginatedResponse<Product>> =>
+// ── Products ────────────────────────────────────────────────────────────────
+export const listProducts = (params?: ProductListParams): Promise<PaginatedResponse<Product>> =>
   get<PaginatedResponse<Product>>("/products", { params });
 
-// POST /api/v1/products
-export const createProduct = (payload: ProductPayload): Promise<Product> =>
+export const createProduct = (payload: ProductPayload | AdminProductCreatePayload): Promise<Product> =>
   post<Product>("/products", payload);
 
-// GET /api/v1/products/{product_id}
-export const getProduct = (productId: number | string): Promise<Product> =>
-  get<Product>(`/products/${productId}`);
+export const getProduct = (productId: string): Promise<Product> => get<Product>(`/products/${productId}`);
 
-// PATCH /api/v1/products/{product_id}
-export const updateProduct = (
-  productId: number,
-  payload: Partial<ProductPayload>
-): Promise<Product> => patch<Product>(`/products/${productId}`, payload);
+export const updateProduct = (productId: string, payload: Partial<ProductPayload>): Promise<Product> =>
+  patch<Product>(`/products/${productId}`, payload);
 
-// DELETE /api/v1/products/{product_id}
-export const deleteProduct = (productId: number): Promise<void> =>
-  del<void>(`/products/${productId}`);
+export const deleteProduct = (productId: string): Promise<void> => del<void>(`/products/${productId}`);
 
-// GET /api/v1/products/slug/{slug}
-export const getProductBySlug = (slug: string): Promise<Product> =>
-  get<Product>(`/products/slug/${slug}`);
+export const getProductBySlug = (slug: string): Promise<Product> => get<Product>(`/products/slug/${slug}`);
 
-// POST /api/v1/products/{product_id}/images  (multipart)
+// Backend returns the created ProductImageResponse, not the full Product —
+// callers that need the updated image list should re-fetch the product.
 export const uploadProductImage = (
-  productId: number,
-  formData: FormData
-): Promise<Product> => postForm<Product>(`/products/${productId}/images`, formData);
+  productId: string,
+  formData: FormData,
+  config?: { params?: Record<string, unknown> }
+): Promise<ProductImage> => postForm<ProductImage>(`/products/${productId}/images`, formData, config);
 
-// DELETE /api/v1/products/{product_id}/images/{image_id}
-export const deleteProductImage = (
-  productId: number,
-  imageId: number
-): Promise<void> => del<void>(`/products/${productId}/images/${imageId}`);
+export const deleteProductImage = (productId: string, imageId: string): Promise<void> =>
+  del<void>(`/products/${productId}/images/${imageId}`);
 
-// ── Categories ────────────────────────────────────────────────────────────────
-// GET /api/v1/categories
-export const listCategories = (): Promise<Category[]> =>
-  get<Category[]>("/categories");
+// ── Variants ──────────────────────────────────────────────────────────────
+export const createVariant = (productId: string, payload: ProductVariantPayload): Promise<Variant> =>
+  post<Variant>(`/products/${productId}/variants`, payload);
 
-// POST /api/v1/categories
+export const updateVariant = (variantId: string, payload: Partial<ProductVariantPayload>): Promise<Variant> =>
+  patch<Variant>(`/variants/${variantId}`, payload);
+
+export const deleteVariant = (variantId: string): Promise<void> => del<void>(`/variants/${variantId}`);
+
+// ── Categories ──────────────────────────────────────────────────────────────
+export const listCategories = (): Promise<Category[]> => get<Category[]>("/categories");
+
 export const createCategory = (payload: CategoryPayload): Promise<Category> =>
   post<Category>("/categories", payload);
 
-// GET /api/v1/categories/{category_id}
-export const getCategory = (categoryId: number): Promise<Category> =>
-  get<Category>(`/categories/${categoryId}`);
+export const getCategory = (categoryId: string): Promise<Category> => get<Category>(`/categories/${categoryId}`);
 
-// PATCH /api/v1/categories/{category_id}
-export const updateCategory = (
-  categoryId: number,
-  payload: Partial<CategoryPayload>
-): Promise<Category> => patch<Category>(`/categories/${categoryId}`, payload);
+export const updateCategory = (categoryId: string, payload: Partial<CategoryPayload>): Promise<Category> =>
+  patch<Category>(`/categories/${categoryId}`, payload);
 
-// DELETE /api/v1/categories/{category_id}
-export const deleteCategory = (categoryId: number): Promise<void> =>
-  del<void>(`/categories/${categoryId}`);
+export const deleteCategory = (categoryId: string): Promise<void> => del<void>(`/categories/${categoryId}`);

@@ -1,10 +1,13 @@
 // src/services/api.ts
-import axios, { AxiosResponse, AxiosRequestConfig, InternalAxiosRequestConfig } from "axios";
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+// Single Axios instance + helpers. Cookie-based auth (withCredentials: true) —
+// no tokens are read from or written to storage, so every helper here takes
+// no token argument. (The old frontend had vestigial `_token` params left
+// over from a pre-cookie-auth version; dropped here on purpose.)
+import axios, { AxiosResponse, AxiosRequestConfig } from "axios";
+import { API_BASE_URL } from "@/config/env";
 
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: {
     Accept: "application/json",
@@ -12,42 +15,76 @@ const api = axios.create({
   },
 });
 
+// Routes that legitimately 401 for a logged-out visitor and must NEVER
+// trigger a redirect or a refresh attempt:
+//  - /users/me      -> AuthContext's silent "am I logged in?" check on mount
+//  - /auth/login     -> a wrong password is a normal 401, not a dead session
+//  - /auth/refresh   -> the refresh call itself; a 401 here means the
+//                       refresh token is gone/expired, so retrying is pointless
+const SILENT_401_PATHS = ["/users/me", "/auth/login", "/auth/refresh"];
+
+let refreshPromise: Promise<void> | null = null;
+
+const attemptRefresh = (): Promise<void> => {
+  if (!refreshPromise) {
+    refreshPromise = api
+      .post("/auth/refresh")
+      .then(() => undefined)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+};
+
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+  async (error) => {
+    const status = error.response?.status;
+    const url: string = error.config?.url ?? "";
+    const isSilentPath = SILENT_401_PATHS.some((p) => url.includes(p));
+
+    if (status === 401 && !isSilentPath && !error.config?._retried) {
+      // Access token likely expired mid-session — try the HttpOnly
+      // refresh-token cookie once before giving up. Only ONE refresh call
+      // is ever in flight; concurrent 401s all await the same promise.
+      try {
+        await attemptRefresh();
+        error.config._retried = true;
+        return api.request(error.config);
+      } catch {
+        // Refresh failed too — the session is genuinely gone.
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
       }
     }
+
     return Promise.reject(error);
   }
 );
 
-export const getData    = <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>             => api.get<T>(url, config).then(r => r.data);
-export const postData   = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => api.post<T>(url, data, config).then(r => r.data);
-export const patchData  = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => api.patch<T>(url, data, config).then(r => r.data);
-export const putData    = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => api.put<T>(url, data, config).then(r => r.data);
-export const deleteData = <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>             => api.delete<T>(url, config).then(r => r.data);
+export const get = <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+  api.get<T>(url, config).then((r) => r.data);
 
-/* ========================================================
-    SHORT-NAME ALIASES
-    Several service files (authService, userService, productService,
-    orderService, wishlistService, paymentService, deliveryService,
-    healthService) import { get, post, patch, del, postForm } from "./api".
-    These did not exist before, which broke the build for every one of
-    those services. Kept as thin wrappers around the *Data helpers above
-    so there is a single implementation to maintain.
-======================================================== */
-export const get      = getData;
-export const post     = postData;
-export const patch    = patchData;
-export const put      = putData;
-export const del      = deleteData;
+export const post = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+  api.post<T>(url, data, config).then((r) => r.data);
+
+export const patch = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+  api.patch<T>(url, data, config).then((r) => r.data);
+
+export const put = <T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> =>
+  api.put<T>(url, data, config).then((r) => r.data);
+
+export const del = <T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+  api.delete<T>(url, config).then((r) => r.data);
+
 export const postForm = <T = unknown>(url: string, formData: FormData, config?: AxiosRequestConfig): Promise<T> =>
-  api.post<T>(url, formData, {
-    ...config,
-    headers: { ...(config?.headers ?? {}), "Content-Type": "multipart/form-data" },
-  }).then(r => r.data);
+  api
+    .post<T>(url, formData, {
+      ...config,
+      headers: { ...(config?.headers ?? {}), "Content-Type": "multipart/form-data" },
+    })
+    .then((r) => r.data);
 
 export default api;

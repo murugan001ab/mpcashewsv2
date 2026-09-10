@@ -38,7 +38,7 @@ async def verify_payment(
 ):
     """Verify a Razorpay payment after checkout."""
     service = PaymentService(db)
-    return await service.verify_payment(data)
+    return await service.verify_payment(current_user.id, data)
 
 
 @router.post("/refund", response_model=PaymentResponse)

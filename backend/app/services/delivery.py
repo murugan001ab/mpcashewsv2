@@ -64,7 +64,7 @@ class DeliveryService:
             "billing_pincode": address.postal_code,
             "billing_state": address.state,
             "billing_country": address.country,
-            "billing_email": order.user.email if hasattr(order, "user") else "",
+            "billing_email": order.user.email if order.user else "",
             "billing_phone": address.phone,
             "shipping_is_billing": True,
             "order_items": items_payload,
