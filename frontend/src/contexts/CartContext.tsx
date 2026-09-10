@@ -102,7 +102,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const items = local.map(
         (i) =>
           ({
-            id: i.id,
+            id: String(i.id),
             quantity: i.quantity,
             price_at_add: String(i.price),
             subtotal: String(i.price * i.quantity),
