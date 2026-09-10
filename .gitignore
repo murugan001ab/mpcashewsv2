@@ -40,3 +40,4 @@ static/uploads/products/*
 !static/uploads/products/.gitkeep
 alembic.ini
 alembic
+.env.production
