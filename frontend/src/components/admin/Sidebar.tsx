@@ -16,6 +16,7 @@ import {
   Settings,
   Percent,
   Images,
+  Info,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const links = [
   { href: "/admin/blog", exact: false, icon: Newspaper, label: "Blog" },
   { href: "/admin/templates", exact: false, icon: FileText, label: "Templates" },
   { href: "/admin/auth-slides", exact: false, icon: Images, label: "Auth Slides" },
+  { href: "/admin/about", exact: false, icon: Info, label: "About Page" },
   { href: "/admin/settings", exact: false, icon: Settings, label: "Settings" },
 ];
 

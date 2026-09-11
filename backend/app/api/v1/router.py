@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     settings,
     coupons,
     auth_slides,
+    about,
 )
 
 api_router = APIRouter()
@@ -37,3 +38,4 @@ api_router.include_router(reviews.router,                  prefix="/reviews",   
 api_router.include_router(blog.router,                     prefix="/blog",       tags=["Blog"])
 api_router.include_router(settings.router,                 prefix="/settings",  tags=["Settings"])
 api_router.include_router(auth_slides.router,               prefix="/auth-slides", tags=["Auth Slides"])
+api_router.include_router(about.router,                     prefix="/about",      tags=["About"])

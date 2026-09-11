@@ -19,6 +19,10 @@ from app.schemas.review import ReviewResponse, ReviewAdminReply, PaginatedReview
 from app.schemas.blog import BlogPostCreate, BlogPostUpdate, BlogPostResponse, PaginatedBlogPostsAdmin
 from app.schemas.settings import SiteSettingsResponse, SiteSettingsUpdate
 from app.schemas.auth_slide import AuthSlideAdminResponse, AuthSlideUpdate, AuthSlideReorder
+from app.schemas.about import (
+    AboutPageResponse, AboutPageUpdate,
+    AboutImageAdminResponse, AboutImageUpdate, AboutImageReorder, AboutImageCategory,
+)
 from app.schemas.template import (
     EmailTemplateUpsert, EmailTemplateUpdate, EmailTemplateResponse,
     WhatsAppTemplateUpdate, WhatsAppTemplateResponse,
@@ -34,6 +38,7 @@ from app.services.blog import BlogService
 from app.services.settings import SettingsService
 from app.services.template import TemplateService
 from app.services.auth_slide import AuthSlideService
+from app.services.about import AboutService
 from app.utils.imagekit import upload_image as ik_upload_image
 
 router = APIRouter()
@@ -565,6 +570,101 @@ async def delete_auth_slide(
     """Permanently delete a slide (and its ImageKit file)."""
     service = AuthSlideService(db)
     await service.delete(slide_id)
+
+
+# ---------------------------------------------------------------------------
+# Admin: About page (hero copy, company story, SEO fields)
+# ---------------------------------------------------------------------------
+
+@router.get("/about", response_model=AboutPageResponse)
+async def get_about_page_admin(
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the current About page content for editing in the admin panel."""
+    service = AboutService(db)
+    return await service.get_page()
+
+
+@router.patch("/about", response_model=AboutPageResponse)
+async def update_about_page(
+    data: AboutPageUpdate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update any subset of the About page content — hero title/subtitle,
+    the main company story (HTML), and its SEO title/description."""
+    service = AboutService(db)
+    return await service.update_page(data)
+
+
+# ---------------------------------------------------------------------------
+# Admin: About page gallery images (farm / factory / product / sales)
+# ---------------------------------------------------------------------------
+
+@router.get("/about/images", response_model=list[AboutImageAdminResponse])
+async def list_about_images_admin(
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List ALL About-page images across every category, including
+    inactive/staged ones, grouped and ordered for the admin gallery editor."""
+    service = AboutService(db)
+    return await service.get_admin_images()
+
+
+@router.post("/about/images", response_model=AboutImageAdminResponse, status_code=status.HTTP_201_CREATED)
+async def create_about_image(
+    file: UploadFile = File(...),
+    category: AboutImageCategory = Query(..., description="One of: farm, factory, product, sales"),
+    caption: Optional[str] = Query(None, description="Optional caption shown under the image"),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a new About-page gallery image into the given category. New
+    images are appended to the end of that category's order and active
+    by default."""
+    service = AboutService(db)
+    return await service.create_image(file, category, caption)
+
+
+# NOTE: registered BEFORE PATCH /about/images/{image_id} for the same reason
+# as /auth-slides/reorder above — otherwise "reorder" would be parsed as a
+# UUID path param and 422.
+@router.patch("/about/images/reorder", response_model=list[AboutImageAdminResponse])
+async def reorder_about_images(
+    data: AboutImageReorder,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set the display order of images within one category by passing the
+    full list of that category's image IDs in the desired order."""
+    service = AboutService(db)
+    return await service.reorder_images(data.category, data.image_ids)
+
+
+@router.patch("/about/images/{image_id}", response_model=AboutImageAdminResponse)
+async def update_about_image(
+    image_id: UUID,
+    data: AboutImageUpdate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Edit an image's category/caption, or toggle is_active to hide it
+    from the public page without deleting it."""
+    service = AboutService(db)
+    return await service.update_image(image_id, data)
+
+
+@router.delete("/about/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_about_image(
+    image_id: UUID,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently delete an About-page image (and its ImageKit file)."""
+    service = AboutService(db)
+    await service.delete_image(image_id)
 
 
 # ---------------------------------------------------------------------------

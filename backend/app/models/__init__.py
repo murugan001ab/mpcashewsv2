@@ -13,6 +13,7 @@ from app.models.blog import BlogPost
 from app.models.settings import SiteSettings
 from app.models.coupon import Coupon, CouponUsage, DiscountType
 from app.models.auth_slide import AuthSlide
+from app.models.about import AboutPage, AboutImage
 
 __all__ = [
     "User", "UserRole",
@@ -31,4 +32,5 @@ __all__ = [
     "SiteSettings",
     "Coupon", "CouponUsage", "DiscountType",
     "AuthSlide",
+    "AboutPage", "AboutImage",
 ]

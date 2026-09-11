@@ -558,3 +558,43 @@ export interface AuthSlideUpdatePayload {
   cite?: string | null;
   is_active?: boolean;
 }
+
+// ── About page (hero copy, company story, SEO) + gallery images ────────────
+export interface AboutPage {
+  hero_title?: string;
+  hero_subtitle?: string;
+  content?: string;
+  meta_title?: string;
+  meta_description?: string;
+  updated_at: string;
+}
+
+export interface AboutPageUpdatePayload {
+  hero_title?: string;
+  hero_subtitle?: string;
+  content?: string;
+  meta_title?: string;
+  meta_description?: string;
+}
+
+export type AboutImageCategory = "farm" | "factory" | "product" | "sales";
+
+export interface AboutImage {
+  id: string;
+  url: string;
+  category: AboutImageCategory;
+  caption?: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface AboutImageAdmin extends AboutImage {
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AboutImageUpdatePayload {
+  category?: AboutImageCategory;
+  caption?: string;
+  is_active?: boolean;
+}
