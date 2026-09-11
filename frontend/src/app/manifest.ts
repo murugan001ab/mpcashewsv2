@@ -10,7 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "MP Cashews — Premium Quality Cashews",
     short_name: "MP Cashews",
-    description: "Hand-picked, sun-dried & roasted cashews from the farms of Goa & Kerala.",
+    description: "Genuine Panruti-native cashews, hand-picked, sun-dried & roasted to perfection — retail & wholesale.",
     start_url: "/",
     display: "standalone",
     background_color: "#fdf6ec", // brand-cream

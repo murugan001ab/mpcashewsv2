@@ -30,7 +30,7 @@ const TRUST_ITEMS: [typeof Truck, string][] = [
 ];
 
 const WHY_ITEMS = [
-  { icon: Leaf, title: "Farm Fresh", desc: "Hand-picked from the finest farms in Panruti & Goa & Kerala, ensuring peak freshness in every batch." },
+  { icon: Leaf, title: "Farm Fresh", desc: "Hand-picked from the finest farms in Panruti, Tamil Nadu, ensuring peak freshness in every batch." },
   { icon: ShieldCheck, title: "Lab Tested", desc: "Every lot is tested for purity and quality before reaching your doorstep." },
   { icon: Truck, title: "Fast Delivery", desc: "Packed and dispatched within 24 hours. Reach you in 2 business days." },
   { icon: Heart, title: "Made with Love", desc: "Small-batch roasting that locks in the natural flavour of premium cashews." },
@@ -123,8 +123,8 @@ function HomeContent() {
           </h1>
 
           <p className="max-w-lg text-white/70 text-base sm:text-lg leading-relaxed">
-            Hand-picked, sun-dried &amp; roasted to perfection — from the farms of Goa &amp; Kerala
-            straight to your doorstep.
+            Genuine Panruti-native cashews — hand-picked, sun-dried &amp; roasted to perfection,
+            straight from our farms to your doorstep. Retail &amp; wholesale, every grade including W240.
           </p>
 
           <div className="flex flex-wrap gap-3">

@@ -40,12 +40,6 @@ export default function BlogPostPage() {
     };
   }, [slug]);
 
-  useEffect(() => {
-    if (post) {
-      document.title = `${post.meta_title || post.title} — MP Cashews`;
-    }
-  }, [post]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32 min-h-screen pt-24">
@@ -102,6 +96,31 @@ export default function BlogPostPage() {
       <div
         className="prose max-w-none text-brand-brown/85 leading-loose prose-headings:text-brand-black prose-a:text-brand-orange"
         dangerouslySetInnerHTML={{ __html: post.content }}
+      />
+
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            headline: post.title,
+            description: post.excerpt,
+            image: post.featured_image ? [post.featured_image] : undefined,
+            datePublished: post.published_at ?? post.created_at,
+            dateModified: post.updated_at ?? post.published_at ?? post.created_at,
+            author: post.author?.full_name
+              ? { "@type": "Person", name: post.author.full_name }
+              : { "@type": "Organization", name: "MP Cashews" },
+            publisher: {
+              "@type": "Organization",
+              name: "MP Cashews",
+              logo: { "@type": "ImageObject", url: "https://mpcashews.in/logo.png" },
+            },
+            mainEntityOfPage: `https://mpcashews.in/blogs/${post.slug}`,
+          }),
+        }}
       />
     </article>
   );
