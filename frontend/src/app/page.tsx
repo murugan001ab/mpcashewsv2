@@ -30,7 +30,7 @@ const TRUST_ITEMS: [typeof Truck, string][] = [
 ];
 
 const WHY_ITEMS = [
-  { icon: Leaf, title: "Farm Fresh", desc: "Hand-picked from the finest farms in Goa & Kerala, ensuring peak freshness in every batch." },
+  { icon: Leaf, title: "Farm Fresh", desc: "Hand-picked from the finest farms in Panruti & Goa & Kerala, ensuring peak freshness in every batch." },
   { icon: ShieldCheck, title: "Lab Tested", desc: "Every lot is tested for purity and quality before reaching your doorstep." },
   { icon: Truck, title: "Fast Delivery", desc: "Packed and dispatched within 24 hours. Reach you in 2 business days." },
   { icon: Heart, title: "Made with Love", desc: "Small-batch roasting that locks in the natural flavour of premium cashews." },

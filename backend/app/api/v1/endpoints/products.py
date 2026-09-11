@@ -9,8 +9,8 @@ from app.dependencies.auth import get_current_admin
 from app.models.user import User
 from app.schemas.product import (
     ProductCreate, ProductUpdate, ProductResponse,
-    ProductListResponse, PaginatedProducts, ProductImageResponse,
-    ProductVariantCreate, ProductVariantUpdate, ProductVariantResponse,
+    ProductListResponse, PaginatedProducts, ProductImageResponse, ProductImageReorder,
+    ProductVariantCreate, ProductVariantUpdate, ProductVariantResponse, ProductReorder,
 )
 from app.services.product import ProductService, ProductVariantService
 
@@ -63,6 +63,26 @@ async def get_product(product_id: UUID, db: AsyncSession = Depends(get_db)):
 async def get_product_by_slug(slug: str, db: AsyncSession = Depends(get_db)):
     service = ProductService(db)
     return await service.get_by_slug(slug)
+
+
+# NOTE: this must be registered BEFORE PATCH /{product_id} below. Both are
+# PATCH on the same router, and FastAPI/Starlette matches routes in
+# registration order — if the {product_id} route came first, a request to
+# /products/reorder would match it with product_id="reorder" and 422 on the
+# UUID parse instead of ever reaching this handler.
+@router.patch("/reorder", response_model=List[ProductResponse])
+async def reorder_products(
+    data: ProductReorder,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """
+    Admin only: set the display order of all products by passing the full
+    list of product IDs in the desired order. This controls which product
+    shows first on the storefront.
+    """
+    service = ProductService(db)
+    return await service.reorder(data.product_ids)
 
 
 @router.patch("/{product_id}", response_model=ProductResponse)
@@ -118,6 +138,22 @@ async def delete_product_image(
 ):
     service = ProductService(db)
     await service.delete_image(product_id, image_id)
+
+
+@router.patch("/{product_id}/images/reorder", response_model=List[ProductImageResponse])
+async def reorder_product_images(
+    product_id: UUID,
+    data: ProductImageReorder,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_current_admin),
+):
+    """
+    Admin only: set the display order of a product's images by passing the
+    full list of image IDs in the desired order. The first ID becomes the
+    primary/default image (is_primary=True, sort_order=0).
+    """
+    service = ProductService(db)
+    return await service.reorder_images(product_id, data.image_ids)
 
 
 # ---------------------------------------------------------------------------

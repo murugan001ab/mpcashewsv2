@@ -24,11 +24,12 @@ export const metadata: Metadata = {
   },
   description:
     "Hand-picked, sun-dried & roasted to perfection from the farms of Goa & Kerala.",
-  icons: {
-    icon: "https://ik.imagekit.io/r2kbkr75w/logo-5.png?updatedAt=1775670903294",
-    shortcut: "https://ik.imagekit.io/r2kbkr75w/logo-5.png?updatedAt=1775670903294",
-    apple: "https://ik.imagekit.io/r2kbkr75w/logo-5.png?updatedAt=1775670903294",
-  },
+  // Icons are now served from this app's own root via Next's file-based
+  // convention (src/app/favicon.ico, icon.png, apple-icon.png) instead of
+  // pointing at the ImageKit CDN. Google's classic favicon lookup checks
+  // https://mpcashews.in/favicon.ico on the site's own domain — a
+  // third-party CDN URL is far less reliable for that, which is why the
+  // brand showed up in search but with no favicon next to it.
 };
 
 export default function RootLayout({

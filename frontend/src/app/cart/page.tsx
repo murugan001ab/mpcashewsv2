@@ -3,7 +3,6 @@ import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ShoppingCart, ArrowRight, Trash2, ArrowLeft, Minus, Plus, Package, Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import AuthGuard from "@/components/AuthGuard";
 import type { ProductWithVariant } from "@/components/ProductCard";
 import QuickAddCard from "@/components/QuickAddCard";
 import * as productService from "@/services/productService";
@@ -427,9 +426,5 @@ function CartContent() {
 }
 
 export default function CartPage() {
-  return (
-    <AuthGuard>
-      <CartContent />
-    </AuthGuard>
-  );
+  return <CartContent />;
 }

@@ -12,6 +12,7 @@ from app.models.template import EmailTemplate, WhatsAppTemplate
 from app.models.blog import BlogPost
 from app.models.settings import SiteSettings
 from app.models.coupon import Coupon, CouponUsage, DiscountType
+from app.models.auth_slide import AuthSlide
 
 __all__ = [
     "User", "UserRole",
@@ -29,4 +30,5 @@ __all__ = [
     "BlogPost",
     "SiteSettings",
     "Coupon", "CouponUsage", "DiscountType",
+    "AuthSlide",
 ]

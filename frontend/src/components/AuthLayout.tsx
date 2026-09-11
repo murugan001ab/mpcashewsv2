@@ -1,25 +1,24 @@
 "use client";
 // src/components/AuthLayout.tsx
 // Ported from pages/Login/AuthLayout.tsx — shared two-pane shell for
-// /login and /register. Static asset URLs point at /login/1.jpg etc;
-// copy frontend/src/assets/login/*.{jpg,jpeg} to frontendv2/public/login/.
+// /login and /register. Slides are now admin-managed (see
+// src/app/admin/auth-slides) and fetched from GET /auth-slides; the array
+// below is only a fallback for the moment before that fetch resolves (or
+// if it fails / the admin hasn't added any slides yet).
 import { useEffect, useState } from "react";
 import type { AuthLayoutProps, SlideItem } from "@/types/authUi";
+import { getAuthSlides } from "@/services/authSlideService";
+import { assetUrl } from "@/config/env";
 
-const SLIDES: SlideItem[] = [
-  { image: "https://picsum.photos/seed/mpcashew1/1600/2000", quote: "Nature's finest nuts, delivered with love.", cite: "MP Cashews" },
-  { image: "https://picsum.photos/seed/mpcashew2/1600/2000", quote: "Pure. Natural. Delicious — straight from the farm.", cite: "Our Promise" },
-  { image: "https://picsum.photos/seed/mpcashew3/1600/2000", quote: "Every cashew tells a story of care and quality.", cite: "MP Cashews Farm" },
-  { image: "https://picsum.photos/seed/mpcashew4/1600/2000", quote: "Handpicked goodness, packed with nutrition.", cite: "Quality Since Day One" },
-  {
-    image: "https://picsum.photos/seed/mpcashew5/1600/2000",
-    quote: "Join thousands of happy customers enjoying premium cashews.",
-    cite: "MP Cashews Community",
-  },
+// Local brand asset, not random picsum.photos stock photos — this is what
+// shows until the admin uploads real slides via /admin/auth-slides (or if
+// that fetch fails). Just one real image cycled with a few different
+// quotes so it doesn't look like a broken placeholder.
+const FALLBACK_SLIDES: SlideItem[] = [
+  { image: "/cashews-banner.png", quote: "Nature's finest nuts, delivered with love.", cite: "MP Cashews" },
+  { image: "/cashews-banner.png", quote: "Pure. Natural. Delicious — straight from the farm.", cite: "Our Promise" },
+  { image: "/cashews-banner.png", quote: "Handpicked goodness, packed with nutrition.", cite: "Quality Since Day One" },
 ];
-// NOTE: using picsum.photos random placeholders until real product/farm
-// photos are sourced. Swap image URLs back to local /login/*.jpg once
-// assets are added to public/login/.
 
 const STATS: [string, string][] = [
   ["10K+", "Customers"],
@@ -30,19 +29,43 @@ const STATS: [string, string][] = [
 const SLIDE_INTERVAL_MS = 4000;
 
 export default function AuthLayout({ children, stats = STATS }: AuthLayoutProps) {
+  const [slides, setSlides] = useState<SlideItem[]>(FALLBACK_SLIDES);
   const [current, setCurrent] = useState(0);
   const [animating, setAnimating] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAuthSlides()
+      .then((fetched) => {
+        if (cancelled || fetched.length === 0) return;
+        setSlides(
+          fetched.map((s) => ({
+            image: assetUrl(s.url) ?? s.url,
+            quote: s.quote,
+            cite: s.cite ?? "",
+          }))
+        );
+        setCurrent(0);
+      })
+      .catch(() => {
+        // Fall back to the static slides already in state — a failed fetch
+        // here shouldn't ever block someone from logging in.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setAnimating(true);
       setTimeout(() => {
-        setCurrent((prev) => (prev + 1) % SLIDES.length);
+        setCurrent((prev) => (prev + 1) % slides.length);
         setAnimating(false);
       }, 500);
     }, SLIDE_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, []);
+  }, [slides.length]);
 
   const goTo = (index: number) => {
     if (index === current) return;
@@ -53,12 +76,12 @@ export default function AuthLayout({ children, stats = STATS }: AuthLayoutProps)
     }, 500);
   };
 
-  const slide = SLIDES[current];
+  const slide = slides[current] ?? slides[0];
 
   return (
     <div className="flex min-h-screen pt-16 bg-white">
       <div className="relative hidden lg:flex lg:w-[62%] xl:w-[65%] overflow-hidden">
-        {SLIDES.map((s, index) => (
+        {slides.map((s, index) => (
           <div
             key={index}
             className="absolute inset-0 bg-cover bg-center transition-all duration-700"
@@ -101,7 +124,7 @@ export default function AuthLayout({ children, stats = STATS }: AuthLayoutProps)
               </cite>
 
               <div className="flex items-center gap-2 mt-8">
-                {SLIDES.map((_, index) => (
+                {slides.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => goTo(index)}

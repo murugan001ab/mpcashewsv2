@@ -2,8 +2,12 @@
 // src/components/GoogleLoginButton.tsx
 // Ported as-is from components/GoogleLogin.jsx — kicks off the OAuth
 // authorization-code redirect flow (GET /auth/google/login -> redirect).
-// No tokens ever touch JS; see src/app/google/callback/page.tsx for the
-// other half of this flow.
+// No tokens ever touch JS. Google redirects straight back to the BACKEND
+// (GOOGLE_REDIRECT_URI = {API}/auth/google/callback), which exchanges the
+// code, sets the HttpOnly cookies, and 302s the browser to the frontend at
+// /auth/success — see src/app/auth/success/page.tsx for the other half of
+// this flow. (src/app/google/callback/page.tsx is just a defensive fallback
+// in case anything is ever misconfigured to redirect here instead.)
 import api from "@/services/api";
 
 export default function GoogleLoginButton() {
@@ -23,7 +27,7 @@ export default function GoogleLoginButton() {
     <button
       type="button"
       onClick={handleClick}
-      className="w-full flex items-center justify-center gap-3 border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 font-semibold text-sm py-2.5 rounded-xl transition shadow-sm"
+      className="w-full flex items-center justify-center gap-3 cursor-pointer border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 font-semibold text-sm py-2.5 rounded-xl transition shadow-sm"
     >
       <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
         <path

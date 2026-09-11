@@ -31,9 +31,17 @@ class CategoryResponse(CategoryBase):
     id: uuid.UUID
     slug: str
     is_active: bool
+    sort_order: int
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class CategoryReorder(BaseModel):
+    """Full ordered list of category IDs. sort_order is rewritten to match
+    this order. Must contain exactly the current set of category IDs (no
+    partial reorders) so a stale admin tab can't silently orphan one."""
+    category_ids: List[uuid.UUID]
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +56,14 @@ class ProductImageResponse(BaseModel):
     sort_order: int
 
     model_config = {"from_attributes": True}
+
+
+class ProductImageReorder(BaseModel):
+    """Full ordered list of a product's image IDs. Position 0 becomes the
+    default/primary image; sort_order is rewritten to match this order.
+    Must contain exactly the product's current image IDs (no partial
+    reorders) so a stale client can't silently drop an image."""
+    image_ids: List[uuid.UUID]
 
 
 # ---------------------------------------------------------------------------
@@ -138,6 +154,7 @@ class ProductResponse(ProductBase):
     id: uuid.UUID
     slug: str
     is_active: bool
+    sort_order: int
     category: CategoryResponse
     variants: List[ProductVariantResponse] = []
     images: List[ProductImageResponse] = []
@@ -153,11 +170,19 @@ class ProductListResponse(BaseModel):
     slug: str
     is_active: bool
     is_featured: bool
+    sort_order: int
     category: CategoryResponse
     variants: List[ProductVariantResponse] = []
     images: List[ProductImageResponse] = []
 
     model_config = {"from_attributes": True}
+
+
+class ProductReorder(BaseModel):
+    """Full ordered list of product IDs. sort_order is rewritten to match
+    this order. Must contain exactly the current set of product IDs (no
+    partial reorders) so a stale admin tab can't silently orphan one."""
+    product_ids: List[uuid.UUID]
 
 
 class PaginatedProducts(BaseModel):

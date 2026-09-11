@@ -21,11 +21,12 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
-import * as cartService from "@/services/cartService";
+import { useCart } from "@/contexts/CartContext";
 import * as wishlistService from "@/services/wishlistService";
 
 export default function Navbar() {
   const { isLogged, logout, user } = useAuth();
+  const { cartCount } = useCart();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -35,7 +36,6 @@ export default function Navbar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [scrolled, setScrolled] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
 
   const profileRef = useRef<HTMLDivElement>(null);
@@ -76,23 +76,16 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Cart + wishlist badge counts, refreshed on auth/route change
+  // Wishlist badge count, refreshed on auth/route change. Cart count now
+  // comes straight from CartContext (see import above) instead of a
+  // separate fetch here — that fetch used to be gated on `isLogged`, so
+  // guests always saw a 0 badge no matter what was in their local cart.
   useEffect(() => {
     if (!isLogged || isAdmin) {
-      setCartCount(0);
       setWishlistCount(0);
       return;
     }
     let cancelled = false;
-
-    cartService
-      .getCart()
-      .then((res) => {
-        if (cancelled) return;
-        const items = res?.items || [];
-        setCartCount(items.reduce((sum, i) => sum + (i.quantity || 0), 0));
-      })
-      .catch(() => {});
 
     wishlistService
       .getWishlist()

@@ -73,6 +73,7 @@ export interface Category {
   name: string;
   slug: string;
   is_active: boolean;
+  sort_order: number;
   image_url?: string;
   image?: string;
 }
@@ -104,6 +105,7 @@ export interface Product {
   short_description?: string;
   is_active: boolean;
   is_featured: boolean;
+  sort_order: number;
   category: Category;
   variants: Variant[];
   images: ProductImage[];
@@ -476,12 +478,12 @@ export interface BlogPostListItem {
 
 export interface BlogPostPayload {
   title: string;
-  excerpt?: string;
+  excerpt?: string | null;
   content: string;
-  featured_image?: string;
+  featured_image?: string | null;
   is_published?: boolean;
-  meta_title?: string;
-  meta_description?: string;
+  meta_title?: string | null;
+  meta_description?: string | null;
 }
 
 export type BlogPostUpdatePayload = Partial<BlogPostPayload>;
@@ -535,3 +537,24 @@ export interface SiteSettings {
 }
 
 export type SiteSettingsUpdatePayload = Partial<Omit<SiteSettings, "updated_at">>;
+
+// ── Auth page slides (login/register left-panel image + quote carousel) ────
+export interface AuthSlide {
+  id: string;
+  url: string;
+  quote: string;
+  cite?: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface AuthSlideAdmin extends AuthSlide {
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuthSlideUpdatePayload {
+  quote?: string;
+  cite?: string | null;
+  is_active?: boolean;
+}

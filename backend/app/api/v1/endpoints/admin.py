@@ -18,6 +18,7 @@ from app.schemas.product import (
 from app.schemas.review import ReviewResponse, ReviewAdminReply, PaginatedReviews
 from app.schemas.blog import BlogPostCreate, BlogPostUpdate, BlogPostResponse, PaginatedBlogPostsAdmin
 from app.schemas.settings import SiteSettingsResponse, SiteSettingsUpdate
+from app.schemas.auth_slide import AuthSlideAdminResponse, AuthSlideUpdate, AuthSlideReorder
 from app.schemas.template import (
     EmailTemplateUpsert, EmailTemplateUpdate, EmailTemplateResponse,
     WhatsAppTemplateUpdate, WhatsAppTemplateResponse,
@@ -32,6 +33,7 @@ from app.services.review import ReviewService
 from app.services.blog import BlogService
 from app.services.settings import SettingsService
 from app.services.template import TemplateService
+from app.services.auth_slide import AuthSlideService
 from app.utils.imagekit import upload_image as ik_upload_image
 
 router = APIRouter()
@@ -494,6 +496,75 @@ async def update_site_settings(
     details, social links, trademark & copyright text)."""
     service = SettingsService(db)
     return await service.update(data)
+
+
+# ---------------------------------------------------------------------------
+# Admin: Auth page slides (login/register left-panel image + quote carousel)
+# ---------------------------------------------------------------------------
+
+@router.get("/auth-slides", response_model=list[AuthSlideAdminResponse])
+async def list_auth_slides_admin(
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """List ALL auth slides, including inactive/staged ones, in display order."""
+    service = AuthSlideService(db)
+    return await service.get_admin_list()
+
+
+@router.post("/auth-slides", response_model=AuthSlideAdminResponse, status_code=status.HTTP_201_CREATED)
+async def create_auth_slide(
+    file: UploadFile = File(...),
+    quote: str = Query(..., description="Quote text shown over the image"),
+    cite: Optional[str] = Query(None, description="Attribution line, e.g. an author or tagline"),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a new auth-page slide image with its quote/cite text. New
+    slides are appended to the end of the order and active by default."""
+    service = AuthSlideService(db)
+    return await service.create(file, quote, cite)
+
+
+# NOTE: this must be registered BEFORE PATCH /auth-slides/{slide_id} below.
+# Both are PATCH on the same router, and FastAPI/Starlette matches routes in
+# registration order — if the {slide_id} route came first, a request to
+# /auth-slides/reorder would match it with slide_id="reorder" and 422 on the
+# UUID parse instead of ever reaching this handler.
+@router.patch("/auth-slides/reorder", response_model=list[AuthSlideAdminResponse])
+async def reorder_auth_slides(
+    data: AuthSlideReorder,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set the display order of all slides by passing the full list of
+    slide IDs in the desired order."""
+    service = AuthSlideService(db)
+    return await service.reorder(data.slide_ids)
+
+
+@router.patch("/auth-slides/{slide_id}", response_model=AuthSlideAdminResponse)
+async def update_auth_slide(
+    slide_id: UUID,
+    data: AuthSlideUpdate,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Edit a slide's quote/cite text, or toggle is_active to hide it from
+    the public carousel without deleting it."""
+    service = AuthSlideService(db)
+    return await service.update(slide_id, data)
+
+
+@router.delete("/auth-slides/{slide_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_auth_slide(
+    slide_id: UUID,
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently delete a slide (and its ImageKit file)."""
+    service = AuthSlideService(db)
+    await service.delete(slide_id)
 
 
 # ---------------------------------------------------------------------------

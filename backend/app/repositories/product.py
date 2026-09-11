@@ -19,13 +19,17 @@ class CategoryRepository(BaseRepository[Category]):
 
     async def get_active(self) -> List[Category]:
         result = await self.db.execute(
-            select(Category).where(Category.is_active == True).order_by(Category.name)
+            select(Category).where(Category.is_active == True).order_by(Category.sort_order, Category.name)
         )
         return list(result.scalars().all())
 
     async def get_all(self) -> List[Category]:
-        result = await self.db.execute(select(Category).order_by(Category.name))
+        result = await self.db.execute(select(Category).order_by(Category.sort_order, Category.name))
         return list(result.scalars().all())
+
+    async def get_max_sort_order(self) -> int:
+        result = await self.db.execute(select(func.max(Category.sort_order)))
+        return result.scalar() or 0
 
 
 class ProductRepository(BaseRepository[Product]):
@@ -85,9 +89,19 @@ class ProductRepository(BaseRepository[Product]):
         total_result = await self.db.execute(count_stmt)
         total = total_result.scalar_one()
 
-        stmt = stmt.order_by(Product.created_at.desc()).offset(skip).limit(limit)
+        stmt = stmt.order_by(Product.sort_order, Product.created_at.desc()).offset(skip).limit(limit)
         result = await self.db.execute(stmt)
         return list(result.scalars().all()), total
+
+    async def get_max_sort_order(self) -> int:
+        result = await self.db.execute(select(func.max(Product.sort_order)))
+        return result.scalar() or 0
+
+    async def get_all(self) -> List[Product]:
+        result = await self.db.execute(
+            select(Product).options(*self._with_relations()).order_by(Product.sort_order)
+        )
+        return list(result.scalars().all())
 
 
 class ProductVariantRepository(BaseRepository[ProductVariant]):

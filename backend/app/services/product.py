@@ -25,7 +25,8 @@ class CategoryService:
         existing = await self.repo.get_by_slug(slug)
         if existing:
             raise HTTPException(status_code=409, detail="Category with this name already exists")
-        category = Category(slug=slug, **data.model_dump())
+        next_order = await self.repo.get_max_sort_order() + 1
+        category = Category(slug=slug, sort_order=next_order, **data.model_dump())
         return await self.repo.create(category)
 
     async def get_all(self) -> List[Category]:
@@ -59,6 +60,28 @@ class CategoryService:
         cat = await self.get_by_id(category_id)
         await self.repo.delete(cat)
 
+    async def reorder(self, category_ids: List[UUID]) -> List[Category]:
+        """
+        Rewrite sort_order to match the given order. `category_ids` must be
+        exactly the current set of category IDs (same members, any order) —
+        rejecting a partial or mismatched list is what stops a stale admin
+        tab from silently orphaning a category's sort_order.
+        """
+        all_categories = await self.repo.get_all()
+        categories_by_id = {c.id: c for c in all_categories}
+
+        if set(category_ids) != set(categories_by_id.keys()):
+            raise HTTPException(
+                status_code=400,
+                detail="category_ids must match the current set of categories exactly",
+            )
+
+        for idx, category_id in enumerate(category_ids):
+            categories_by_id[category_id].sort_order = idx
+
+        await self.repo.db.flush()
+        return sorted(categories_by_id.values(), key=lambda c: c.sort_order)
+
 
 class ProductService:
     def __init__(self, db: AsyncSession):
@@ -81,8 +104,9 @@ class ProductService:
                 raise HTTPException(status_code=409, detail=f"SKU '{v.sku}' already exists")
 
         slug = await self._unique_slug(data.name)
+        next_order = await self.repo.get_max_sort_order() + 1
         product_data = data.model_dump(exclude={"variants"})
-        product = Product(slug=slug, **product_data)
+        product = Product(slug=slug, sort_order=next_order, **product_data)
         self.repo.db.add(product)
         await self.repo.db.flush()  # get product.id
 
@@ -140,6 +164,28 @@ class ProductService:
         product = await self.get_by_id(product_id)
         await self.repo.delete(product)
 
+    async def reorder(self, product_ids: List[UUID]) -> List[Product]:
+        """
+        Rewrite sort_order to match the given order. `product_ids` must be
+        exactly the current set of product IDs (same members, any order) —
+        rejecting a partial or mismatched list is what stops a stale admin
+        tab from silently orphaning a product's sort_order.
+        """
+        all_products = await self.repo.get_all()
+        products_by_id = {p.id: p for p in all_products}
+
+        if set(product_ids) != set(products_by_id.keys()):
+            raise HTTPException(
+                status_code=400,
+                detail="product_ids must match the current set of products exactly",
+            )
+
+        for idx, product_id in enumerate(product_ids):
+            products_by_id[product_id].sort_order = idx
+
+        await self.repo.db.flush()
+        return sorted(products_by_id.values(), key=lambda p: p.sort_order)
+
     # ------------------------------------------------------------------
     # Image helpers
     # ------------------------------------------------------------------
@@ -176,6 +222,31 @@ class ProductService:
         await ik_delete_image(image.file_id)
         await self.repo.db.delete(image)
         await self.repo.db.flush()
+
+    async def reorder_images(self, product_id: UUID, image_ids: List[UUID]) -> List[ProductImage]:
+        """
+        Rewrite sort_order to match the given order and make position 0 the
+        primary/default image. `image_ids` must be exactly the product's
+        current image set (same members, any order) — rejecting a partial
+        or mismatched list here is what stops a stale admin tab from
+        silently orphaning an image's sort_order.
+        """
+        product = await self.get_by_id(product_id)
+        images_by_id = {img.id: img for img in product.images}
+
+        if set(image_ids) != set(images_by_id.keys()):
+            raise HTTPException(
+                status_code=400,
+                detail="image_ids must match the product's current images exactly",
+            )
+
+        for idx, image_id in enumerate(image_ids):
+            img = images_by_id[image_id]
+            img.sort_order = idx
+            img.is_primary = idx == 0
+
+        await self.repo.db.flush()
+        return sorted(images_by_id.values(), key=lambda i: i.sort_order)
 
 
 class ProductVariantService:

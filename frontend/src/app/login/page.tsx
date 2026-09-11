@@ -6,8 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, LogIn, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import api from "@/services/api";
-import { getLocalCart, clearLocalCart } from "@/utils/localCart";
 import GoogleLoginButton from "@/components/GoogleLoginButton";
 import AuthLayout from "@/components/AuthLayout";
 import { getErrorMessage } from "@/utils/apiError";
@@ -22,27 +22,10 @@ export default function SignInPage() {
 
   const router = useRouter();
   const { setIsLogged, setUser } = useAuth();
+  const { mergeGuestCart } = useCart();
 
   const set = (field: keyof LoginFormState) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
-
-  // NOTE: the guest cart (localCart) only stores product_id, not a variant —
-  // but the backend's /cart/items endpoint requires a variant_id. The old
-  // frontend posted product_id where variant_id was expected, which would
-  // have failed against the real API. Best-effort merge here; a correct fix
-  // needs the guest cart to capture variant_id at add-time (TODO).
-  const mergeCartAfterLogin = async () => {
-    const guestCart = getLocalCart();
-    if (!guestCart.length) return;
-    for (const item of guestCart) {
-      try {
-        await api.post("/cart/items", { variant_id: item.product_id, quantity: item.quantity ?? 1 });
-      } catch {
-        /* ignore individual item failures */
-      }
-    }
-    clearLocalCart();
-  };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -57,7 +40,7 @@ export default function SignInPage() {
       const { data: userData } = await api.get<User>("/users/me");
       setUser(userData);
       setIsLogged(true);
-      await mergeCartAfterLogin();
+      await mergeGuestCart();
       router.replace(userData.role === "admin" ? "/admin" : "/");
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Invalid email or password"));
@@ -136,7 +119,7 @@ export default function SignInPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-amber-950 text-sm font-semibold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full mt-1 flex items-center cursor-pointer justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-500 active:bg-amber-600 text-amber-950 text-sm font-semibold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <LogIn size={16} />
           Sign In

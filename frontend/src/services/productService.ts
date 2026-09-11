@@ -27,6 +27,10 @@ export const updateProduct = (productId: string, payload: Partial<ProductPayload
 
 export const deleteProduct = (productId: string): Promise<void> => del<void>(`/products/${productId}`);
 
+// Full ordered list of product IDs; controls display order on the storefront.
+export const reorderProducts = (productIds: string[]): Promise<Product[]> =>
+  patch<Product[]>("/products/reorder", { product_ids: productIds });
+
 export const getProductBySlug = (slug: string): Promise<Product> => get<Product>(`/products/slug/${slug}`);
 
 // Backend returns the created ProductImageResponse, not the full Product —
@@ -39,6 +43,10 @@ export const uploadProductImage = (
 
 export const deleteProductImage = (productId: string, imageId: string): Promise<void> =>
   del<void>(`/products/${productId}/images/${imageId}`);
+
+// Full ordered list of image IDs; index 0 becomes the primary/default image.
+export const reorderProductImages = (productId: string, imageIds: string[]): Promise<ProductImage[]> =>
+  patch<ProductImage[]>(`/products/${productId}/images/reorder`, { image_ids: imageIds });
 
 // ── Variants ──────────────────────────────────────────────────────────────
 export const createVariant = (productId: string, payload: ProductVariantPayload): Promise<Variant> =>
@@ -61,3 +69,7 @@ export const updateCategory = (categoryId: string, payload: Partial<CategoryPayl
   patch<Category>(`/categories/${categoryId}`, payload);
 
 export const deleteCategory = (categoryId: string): Promise<void> => del<void>(`/categories/${categoryId}`);
+
+// Full ordered list of category IDs; controls display order on the storefront.
+export const reorderCategories = (categoryIds: string[]): Promise<Category[]> =>
+  patch<Category[]>("/categories/reorder", { category_ids: categoryIds });

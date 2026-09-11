@@ -2,15 +2,15 @@
 // src/app/admin/categories/page.tsx
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Plus, Pencil, Trash2, Tag, EyeOff, ImagePlus, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, EyeOff, ImagePlus, Loader2, GripVertical } from "lucide-react";
 import * as adminService from "@/services/adminService";
 import * as productService from "@/services/productService";
 import type { Category } from "@/types";
 import { getErrorMessage } from "@/utils/apiError";
+import ImageCropModal from "@/components/admin/ImageCropModal";
 import {
   PageHeader,
   Button,
-  IconButton,
   Field,
   inputClass,
   Modal,
@@ -19,6 +19,12 @@ import {
   EmptyState,
   Badge,
 } from "@/components/admin/ui";
+
+// Category tiles render as small squares everywhere (the picker preview
+// here, the storefront category grid, the admin list thumbnail) — 1:1 is
+// what actually gets shown, and 600px is plenty for how small these render.
+const CATEGORY_ASPECT = 1;
+const CATEGORY_OUTPUT_SIZE = 600;
 
 // Shared file-picker tile: shows the current image (or a placeholder), and
 // swaps to a spinner while the file is uploading to ImageKit.
@@ -77,6 +83,17 @@ export default function CategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
+  // Drag-to-reorder state for the category grid below.
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
+
+  // Shared crop step for both the add-form and edit-modal pickers —
+  // `cropTarget` records which one triggered it so onCropped uploads to the
+  // right place.
+  const [pendingRawFile, setPendingRawFile] = useState<File | null>(null);
+  const [cropTarget, setCropTarget] = useState<"add" | "edit" | null>(null);
+
   const fetchCategories = async () => {
     setLoading(true);
     try {
@@ -93,29 +110,42 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
-  const handlePickAddImage = async (file: File) => {
-    setUploadingAdd(true);
-    setError("");
-    try {
-      const { url } = await adminService.uploadImage(file, "categories");
-      setImageUrl(url);
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to upload image."));
-    } finally {
-      setUploadingAdd(false);
-    }
+  const handlePickAddImage = (file: File) => {
+    setCropTarget("add");
+    setPendingRawFile(file);
   };
 
-  const handlePickEditImage = async (file: File) => {
-    setUploadingEdit(true);
-    setModalError("");
-    try {
-      const { url } = await adminService.uploadImage(file, "categories");
-      setEditImageUrl(url);
-    } catch (err) {
-      setModalError(getErrorMessage(err, "Failed to upload image."));
-    } finally {
-      setUploadingEdit(false);
+  const handlePickEditImage = (file: File) => {
+    setCropTarget("edit");
+    setPendingRawFile(file);
+  };
+
+  const uploadCroppedCategoryImage = async (cropped: File) => {
+    const target = cropTarget;
+    setPendingRawFile(null);
+    setCropTarget(null);
+    if (target === "add") {
+      setUploadingAdd(true);
+      setError("");
+      try {
+        const { url } = await adminService.uploadImage(cropped, "categories");
+        setImageUrl(url);
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to upload image."));
+      } finally {
+        setUploadingAdd(false);
+      }
+    } else if (target === "edit") {
+      setUploadingEdit(true);
+      setModalError("");
+      try {
+        const { url } = await adminService.uploadImage(cropped, "categories");
+        setEditImageUrl(url);
+      } catch (err) {
+        setModalError(getErrorMessage(err, "Failed to upload image."));
+      } finally {
+        setUploadingEdit(false);
+      }
     }
   };
 
@@ -184,6 +214,36 @@ export default function CategoriesPage() {
     }
   };
 
+  // Drag-to-reorder: dropping a tile moves it to that position in the grid,
+  // and that becomes the display order shown on the storefront.
+  const handleDrop = async (targetId: string) => {
+    setDragOverId(null);
+    const sourceId = draggedId;
+    setDraggedId(null);
+    if (!sourceId || sourceId === targetId) return;
+
+    const reordered = [...categories];
+    const fromIdx = reordered.findIndex((c) => c.id === sourceId);
+    const toIdx = reordered.findIndex((c) => c.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    const prevCategories = categories;
+    setCategories(reordered); // optimistic
+    setReordering(true);
+    try {
+      const updated = await productService.reorderCategories(reordered.map((c) => c.id));
+      setCategories(updated);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to save the new order."));
+      setCategories(prevCategories); // roll back
+    } finally {
+      setReordering(false);
+    }
+  };
+
   return (
     <div>
       <PageHeader title="Categories" subtitle="Organize products into browsable groups" />
@@ -226,12 +286,19 @@ export default function CategoriesPage() {
           </form>
         </div>
 
-        {/* List */}
+        {/* Grid */}
         <div className="bg-white rounded-2xl border border-brand-brown/10 overflow-hidden">
-          <div className="flex items-center gap-2 px-5 py-4 border-b border-brand-brown/10">
-            <Tag size={15} className="text-brand-brown/50" />
-            <h3 className="font-bold text-brand-black text-sm">All categories</h3>
-            <span className="text-xs text-brand-brown/40 font-semibold">({categories.length})</span>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-brand-brown/10">
+            <div className="flex items-center gap-2">
+              <Tag size={15} className="text-brand-brown/50" />
+              <h3 className="font-bold text-brand-black text-sm">All categories</h3>
+              <span className="text-xs text-brand-brown/40 font-semibold">({categories.length})</span>
+            </div>
+            {reordering && (
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-brand-brown/45">
+                <Loader2 size={11} className="animate-spin" /> Saving order…
+              </span>
+            )}
           </div>
 
           {loading ? (
@@ -239,44 +306,96 @@ export default function CategoriesPage() {
           ) : categories.length === 0 ? (
             <EmptyState icon={Tag} title="No categories yet" description="Add your first one using the form on the left." />
           ) : (
-            <ul className="divide-y divide-brand-brown/8">
-              {categories.map((c) => (
-                <li key={c.id} className="flex items-center gap-4 px-5 py-3.5">
-                  <div className="w-11 h-11 rounded-xl bg-brand-brown/5 overflow-hidden shrink-0 relative">
-                    {c.image_url ? (
-                      <Image src={c.image_url} alt={c.name} fill className="object-cover" unoptimized />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-brand-brown/30">
-                        <Tag size={16} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-brand-black truncate">{c.name}</p>
-                    <p className="text-xs text-brand-brown/40">/{c.slug}</p>
-                  </div>
-                  {!c.is_active && (
-                    <Badge tone="neutral">
-                      <EyeOff size={11} /> Hidden
-                    </Badge>
-                  )}
-                  <button
-                    onClick={() => toggleActive(c)}
-                    className="text-xs font-semibold text-brand-brown/50 hover:text-brand-black transition-colors shrink-0"
+            <div className="p-5">
+              <p className="text-[11px] text-brand-brown/40 mb-3">
+                Drag a card to reorder — this is the order shown on the storefront.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {categories.map((c, idx) => (
+                  <div
+                    key={c.id}
+                    draggable
+                    onDragStart={() => setDraggedId(c.id)}
+                    onDragEnter={() => setDragOverId(c.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDragEnd={() => {
+                      setDraggedId(null);
+                      setDragOverId(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleDrop(c.id);
+                    }}
+                    className={`group relative rounded-2xl border overflow-hidden cursor-grab active:cursor-grabbing transition-all ${
+                      c.is_active ? "border-brand-brown/10" : "border-brand-brown/10 opacity-60"
+                    } ${draggedId === c.id ? "opacity-40" : ""} ${
+                      dragOverId === c.id && draggedId && draggedId !== c.id
+                        ? "ring-2 ring-brand-orange ring-offset-2"
+                        : ""
+                    }`}
                   >
-                    {c.is_active ? "Hide" : "Show"}
-                  </button>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <IconButton onClick={() => openEdit(c)} title="Edit">
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(c)} title="Delete" className="hover:text-red-600 hover:bg-red-50">
-                      <Trash2 size={14} />
-                    </IconButton>
+                    <div className="relative w-full aspect-square bg-brand-brown/5">
+                      {c.image_url ? (
+                        <Image src={c.image_url} alt={c.name} fill className="object-cover pointer-events-none" unoptimized />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-brand-brown/30">
+                          <Tag size={22} />
+                        </div>
+                      )}
+
+                      <span className="absolute top-2 left-2 bg-black/55 text-white text-[11px] font-bold w-6 h-6 rounded-full flex items-center justify-center">
+                        {idx + 1}
+                      </span>
+
+                      <span className="absolute bottom-2 left-2 bg-black/45 text-white rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <GripVertical size={14} />
+                      </span>
+
+                      {!c.is_active && (
+                        <span className="absolute top-2 right-2">
+                          <Badge tone="neutral">
+                            <EyeOff size={11} /> Hidden
+                          </Badge>
+                        </span>
+                      )}
+
+                      {/* Edit / delete overlay — visible on hover, like the storefront tile the admin is used to seeing */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(c)}
+                          title="Edit"
+                          className="w-8 h-8 rounded-full bg-white/90 hover:bg-white text-brand-black flex items-center justify-center transition-colors"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(c)}
+                          title="Delete"
+                          className="w-8 h-8 rounded-full bg-white/90 hover:bg-red-600 hover:text-white text-red-600 flex items-center justify-center transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="px-3 py-2.5">
+                      <p className="text-sm font-semibold text-brand-black truncate">{c.name}</p>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <p className="text-[11px] text-brand-brown/40 truncate">/{c.slug}</p>
+                        <button
+                          onClick={() => toggleActive(c)}
+                          className="text-[11px] font-semibold text-brand-brown/50 hover:text-brand-black transition-colors shrink-0"
+                        >
+                          {c.is_active ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -311,6 +430,20 @@ export default function CategoriesPage() {
           </div>
         </form>
       </Modal>
+
+      <ImageCropModal
+        open={!!pendingRawFile}
+        file={pendingRawFile}
+        aspect={CATEGORY_ASPECT}
+        outputWidth={CATEGORY_OUTPUT_SIZE}
+        outputHeight={CATEGORY_OUTPUT_SIZE}
+        title="Crop category image"
+        onCancel={() => {
+          setPendingRawFile(null);
+          setCropTarget(null);
+        }}
+        onCropped={uploadCroppedCategoryImage}
+      />
     </div>
   );
 }

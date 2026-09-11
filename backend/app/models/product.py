@@ -18,6 +18,7 @@ class Category(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -37,6 +38,7 @@ class Product(Base):
     short_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     category_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -46,7 +48,8 @@ class Product(Base):
         "ProductVariant", back_populates="product", cascade="all, delete-orphan"
     )
     images: Mapped[list["ProductImage"]] = relationship(
-        "ProductImage", back_populates="product", cascade="all, delete-orphan"
+        "ProductImage", back_populates="product", cascade="all, delete-orphan",
+        order_by="ProductImage.sort_order",
     )
     cart_items: Mapped[list["CartItem"]] = relationship("CartItem", back_populates="product")
     wishlist_items: Mapped[list["WishlistItem"]] = relationship("WishlistItem", back_populates="product")

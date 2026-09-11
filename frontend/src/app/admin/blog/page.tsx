@@ -129,10 +129,10 @@ export default function AdminBlogPage() {
     try {
       const payload: BlogPostPayload = {
         ...form,
-        excerpt: form.excerpt?.trim() || undefined,
-        featured_image: form.featured_image?.trim() || undefined,
-        meta_title: form.meta_title?.trim() || undefined,
-        meta_description: form.meta_description?.trim() || undefined,
+        excerpt: form.excerpt?.trim() || null,
+        featured_image: form.featured_image?.trim() || null,
+        meta_title: form.meta_title?.trim() || null,
+        meta_description: form.meta_description?.trim() || null,
       };
       if (editing) {
         await blogService.updateBlogPost(editing.id, payload);

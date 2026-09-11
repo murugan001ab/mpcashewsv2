@@ -62,6 +62,7 @@ interface CartContextValue {
   removeItem: (item: CartItem) => Promise<void>;
   clearCart: () => Promise<void>;
   reloadCart: () => Promise<void>;
+  mergeGuestCart: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextValue>({} as CartContextValue);
@@ -270,6 +271,49 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const cartCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
+  // Called right after login (email/password or Google) succeeds, while the
+  // guest's items are still sitting in localStorage. Posts each one to the
+  // now-authenticated server cart, clears local storage, then reloads from
+  // the server so cartItems/totals/cartCount all reflect the merge
+  // immediately — the two login flows used to do this inline with a raw
+  // api.post() loop and never called reloadCart() afterwards, so the navbar
+  // badge and /cart page stayed stale (showing the pre-merge state, or 0)
+  // until something else happened to trigger a refetch.
+  const mergeGuestCart = async () => {
+    const guestCart = getLocalCart();
+    if (!guestCart.length) return;
+    for (const item of guestCart) {
+      try {
+        // product_id doubles as the variant id here — addLocalItem() is
+        // always called with a variantId for both id and product_id (see
+        // addToCart below), so this lines up with what /cart/items expects.
+        await cartService.addToCart({ variant_id: String(item.product_id), quantity: item.quantity ?? 1 });
+      } catch (e) {
+        console.error("[CartContext] mergeGuestCart item failed:", item, e);
+        // Keep going — one bad/stale item (e.g. a since-deleted variant)
+        // shouldn't block the rest of the guest cart from merging.
+      }
+    }
+    clearLocalCart();
+    // NOT reloadCart(): the caller (login page / auth/success page) grabbed
+    // this function via useCart() while isLogged was still false, so
+    // reloadCart is closed over that stale isLogged=false — calling it here
+    // would take the guest branch, read the now-empty localStorage, and
+    // stomp the cart back to empty right after a successful merge (visible
+    // as "items vanish after login" until a manual refresh). Merging only
+    // ever happens right after a real login, so go straight to the
+    // authenticated fetch instead of routing through the isLogged branch.
+    setCartLoading(true);
+    try {
+      const summary = await cartService.getCart();
+      applySummary(summary);
+    } catch (e) {
+      console.error("[CartContext] mergeGuestCart post-merge fetch error:", e);
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
   return (
     <CartContext.Provider
       value={{
@@ -283,6 +327,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         removeItem,
         clearCart: clearCartFn,
         reloadCart,
+        mergeGuestCart,
       }}
     >
       {children}

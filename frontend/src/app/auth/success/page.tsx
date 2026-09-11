@@ -13,13 +13,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import api from "@/services/api";
-import { getLocalCart, clearLocalCart } from "@/utils/localCart";
 import type { User } from "@/types";
 
 export default function AuthSuccess() {
   const router = useRouter();
   const { setIsLogged, setUser } = useAuth();
+  const { mergeGuestCart } = useCart();
   const [error, setError] = useState("");
   const ran = useRef(false);
 
@@ -32,29 +33,14 @@ export default function AuthSuccess() {
         const { data: userData } = await api.get<User>("/users/me");
         setUser(userData);
         setIsLogged(true);
-
-        const guestCart = getLocalCart();
-        if (guestCart.length) {
-          for (const item of guestCart) {
-            try {
-              await api.post("/cart/items", {
-                variant_id: item.product_id,
-                quantity: item.quantity ?? 1,
-              });
-            } catch {
-              /* ignore individual item failures */
-            }
-          }
-          clearLocalCart();
-        }
-
+        await mergeGuestCart();
         router.replace(userData.role === "admin" ? "/admin" : "/");
       } catch (err) {
         console.error("Google login failed:", err);
         setError("Google sign-in failed. Please try again.");
       }
     })();
-  }, [router, setIsLogged, setUser]);
+  }, [router, setIsLogged, setUser, mergeGuestCart]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center">
