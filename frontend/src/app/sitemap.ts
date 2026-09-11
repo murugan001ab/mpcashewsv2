@@ -87,6 +87,22 @@ async function getBlogEntries(): Promise<MetadataRoute.Sitemap> {
   }
 }
 
+async function getAboutLastModified(): Promise<Date | undefined> {
+  try {
+    const url = `${API_BASE_URL}about`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) {
+      console.error(`[sitemap] about fetch failed: ${res.status} ${res.statusText} — ${url}`);
+      return undefined;
+    }
+    const data = (await res.json()) as { updated_at?: string };
+    return data.updated_at ? new Date(data.updated_at) : undefined;
+  } catch (err) {
+    console.error("[sitemap] about fetch threw:", err);
+    return undefined;
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticEntries: MetadataRoute.Sitemap = [
     {
@@ -94,6 +110,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
+    },
+    {
+      url: `${SITE_URL}/about`,
+      lastModified: await getAboutLastModified(),
+      changeFrequency: "monthly",
+      priority: 0.7,
     },
     {
       url: `${SITE_URL}/become-partner`,
