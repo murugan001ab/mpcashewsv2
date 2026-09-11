@@ -321,7 +321,7 @@ export default function AdminBlogPage() {
             <textarea
               className={inputClass}
               rows={2}
-              value={form.excerpt}
+              value={form.excerpt ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, excerpt: e.target.value }))}
             />
           </Field>
@@ -340,14 +340,14 @@ export default function AdminBlogPage() {
             <Field label="SEO title" hint="Falls back to the post title if left blank">
               <input
                 className={inputClass}
-                value={form.meta_title}
+                value={form.meta_title ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, meta_title: e.target.value }))}
               />
             </Field>
             <Field label="SEO description">
               <input
                 className={inputClass}
-                value={form.meta_description}
+                value={form.meta_description ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, meta_description: e.target.value }))}
               />
             </Field>

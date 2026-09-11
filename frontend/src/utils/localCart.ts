@@ -4,8 +4,8 @@
 const CART_KEY = "local_cart";
 
 export interface LocalCartItem {
-  id: number;
-  product_id: number;
+  id: string;
+  product_id: string;
   name: string;
   price: number;
   image?: string;
@@ -36,7 +36,7 @@ export const addLocalItem = (product: Omit<LocalCartItem, "quantity"> & { quanti
   return cart;
 };
 
-export const updateLocalItem = (productId: number, qty: number): LocalCartItem[] => {
+export const updateLocalItem = (productId: string, qty: number): LocalCartItem[] => {
   const cart = getLocalCart()
     .map(i => (i.product_id === productId ? { ...i, quantity: qty } : i))
     .filter(i => i.quantity > 0);
@@ -44,7 +44,7 @@ export const updateLocalItem = (productId: number, qty: number): LocalCartItem[]
   return cart;
 };
 
-export const removeLocalItem = (productId: number): LocalCartItem[] => {
+export const removeLocalItem = (productId: string): LocalCartItem[] => {
   const cart = getLocalCart().filter(i => i.product_id !== productId);
   saveLocalCart(cart);
   return cart;
