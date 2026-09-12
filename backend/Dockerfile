@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+COPY .env.production .
+
 RUN mkdir -p static/uploads/products logs
 
 EXPOSE 8000

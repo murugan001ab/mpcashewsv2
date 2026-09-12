@@ -50,7 +50,7 @@ export default function AddressForm({
   saving,
 }: {
   form: AddressFormState;
-  setForm: (updater: (f: AddressFormState) => AddressFormState) => void;
+  setForm: React.Dispatch<React.SetStateAction<AddressFormState | null>>;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
   saving: boolean;
@@ -66,12 +66,12 @@ export default function AddressForm({
 
   const set = <K extends keyof Address>(key: K, value: Address[K]) => {
     touchedRef.current.add(key as string);
-    setForm((f) => ({ ...f, [key]: value }));
+    setForm((f) => ({ ...(f ?? {}), [key]: value }));
   };
 
   const handlePincodeChange = async (value: string) => {
     touchedRef.current.add("pincode");
-    setForm((f) => ({ ...f, pincode: value }));
+    setForm((f) => ({ ...(f ?? {}), pincode: value }));
     setPincodeError("");
     if (!/^\d{6}$/.test(value)) return;
     if (!PINCODE_RE.test(value)) {
@@ -81,12 +81,15 @@ export default function AddressForm({
     setPincodeLoading(true);
     try {
       const res = await locationService.lookupPincode(value);
-      setForm((f) => ({
-        ...f,
-        state: !touchedRef.current.has("state") || !f.state ? res.state || f.state : f.state,
-        city: !touchedRef.current.has("city") || !f.city ? res.city || f.city : f.city,
-        district: !touchedRef.current.has("district") || !f.district ? res.district || f.district : f.district,
-      }));
+      setForm((f) => {
+        const cur = f ?? {};
+        return {
+          ...cur,
+          state: !touchedRef.current.has("state") || !cur.state ? res.state || cur.state : cur.state,
+          city: !touchedRef.current.has("city") || !cur.city ? res.city || cur.city : cur.city,
+          district: !touchedRef.current.has("district") || !cur.district ? res.district || cur.district : cur.district,
+        };
+      });
     } catch {
       setPincodeError("Couldn't find that pincode. You can enter the details manually.");
     } finally {
@@ -97,19 +100,22 @@ export default function AddressForm({
   const handleConfirmLocation = async (coords: { lat: number; lng: number }) => {
     setShowMap(false);
     setGeoLoading(true);
-    setForm((f) => ({ ...f, latitude: coords.lat, longitude: coords.lng }));
+    setForm((f) => ({ ...(f ?? {}), latitude: coords.lat, longitude: coords.lng }));
     try {
       const res = await locationService.reverseGeocode(coords.lat, coords.lng);
-      setForm((f) => ({
-        ...f,
-        house_flat: !touchedRef.current.has("house_flat") || !f.house_flat ? res.address_line1 || f.house_flat : f.house_flat,
-        street_area: !touchedRef.current.has("street_area") || !f.street_area ? res.address_line2 || f.street_area : f.street_area,
-        city: !touchedRef.current.has("city") || !f.city ? res.city || f.city : f.city,
-        district: !touchedRef.current.has("district") || !f.district ? res.district || f.district : f.district,
-        state: !touchedRef.current.has("state") || !f.state ? res.state || f.state : f.state,
-        pincode: !touchedRef.current.has("pincode") || !f.pincode ? res.postal_code || f.pincode : f.pincode,
-        country: res.country || f.country,
-      }));
+      setForm((f) => {
+        const cur = f ?? {};
+        return {
+          ...cur,
+          house_flat: !touchedRef.current.has("house_flat") || !cur.house_flat ? res.address_line1 || cur.house_flat : cur.house_flat,
+          street_area: !touchedRef.current.has("street_area") || !cur.street_area ? res.address_line2 || cur.street_area : cur.street_area,
+          city: !touchedRef.current.has("city") || !cur.city ? res.city || cur.city : cur.city,
+          district: !touchedRef.current.has("district") || !cur.district ? res.district || cur.district : cur.district,
+          state: !touchedRef.current.has("state") || !cur.state ? res.state || cur.state : cur.state,
+          pincode: !touchedRef.current.has("pincode") || !cur.pincode ? res.postal_code || cur.pincode : cur.pincode,
+          country: res.country || cur.country,
+        };
+      });
     } catch {
       // Reverse-geocoding failed — coordinates are still saved, admin/user
       // just has to fill the address fields in manually.
