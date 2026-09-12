@@ -73,7 +73,7 @@ export default function OrdersTab() {
 
   return (
     <div className="max-w-4xl">
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <h3 className="text-xl font-extrabold text-brand-black tracking-tight">Your Orders</h3>
         <p className="text-sm font-medium text-brand-brown/60 mt-1">
           View your order history and leave reviews for products you&apos;ve purchased.
@@ -81,7 +81,7 @@ export default function OrdersTab() {
       </div>
 
       {orders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4 bg-gray-50 border border-brand-brown/5 text-center rounded-3xl border-dashed">
+        <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 bg-gray-50 border border-brand-brown/5 text-center rounded-3xl border-dashed">
           <div className="w-16 h-16 bg-brand-orange/10 text-brand-orange rounded-full flex items-center justify-center mb-4">
             <Package size={32} strokeWidth={1.5} />
           </div>
@@ -91,16 +91,16 @@ export default function OrdersTab() {
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:gap-6">
           {orders.map((order) => (
             <div
               key={order.id}
-              className="bg-white border border-brand-brown/10 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300"
+              className="min-w-0 bg-white border border-brand-brown/10 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300"
             >
               {/* Order Header */}
-              <div className="bg-gray-50/50 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-brown/5">
+              <div className="bg-gray-50/50 px-4 sm:px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 border-b border-brand-brown/5">
                 <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-extrabold text-brand-black tracking-tight">
                       Order #{order.id}
                     </span>
@@ -122,7 +122,7 @@ export default function OrdersTab() {
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 {order.status?.toLowerCase() !== "cancelled" && order.status?.toLowerCase() !== "refunded" ? (
                   <div className="mb-6 pb-6 border-b border-brand-brown/5">
                     <OrderTimeline status={order.status} />
@@ -134,13 +134,13 @@ export default function OrdersTab() {
                 )}
 
                 {order.address && (
-                  <div className="flex items-start gap-3 bg-brand-cream/20 border border-brand-brown/5 rounded-xl p-4 mb-6">
+                  <div className="flex items-start gap-3 bg-brand-cream/20 border border-brand-brown/5 rounded-xl p-4 mb-6 min-w-0">
                     <MapPin size={18} className="text-brand-orange mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-bold text-brand-black mb-1">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-brand-black mb-1 break-words">
                         Deliver to: <span className="text-brand-orange">{order.address.full_name}</span>
                       </p>
-                      <p className="text-xs text-brand-brown/70 leading-relaxed max-w-xl">
+                      <p className="text-xs text-brand-brown/70 leading-relaxed max-w-xl break-words">
                         {order.address.address_line1}
                         {order.address.address_line2 ? `, ${order.address.address_line2}` : ""}, {order.address.city}, {order.address.state} -{" "}
                         <span className="font-semibold text-brand-black">{order.address.postal_code}</span>
@@ -170,10 +170,10 @@ export default function OrdersTab() {
                       return (
                         <div
                           key={`${order.id}-${idx}`}
-                          className="py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                          className="py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-gray-50 rounded-xl overflow-hidden border border-brand-brown/5 flex-shrink-0">
+                          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-50 rounded-xl overflow-hidden border border-brand-brown/5 flex-shrink-0">
                               {productImage ? (
                                 <img
                                   src={productImage}
@@ -186,11 +186,11 @@ export default function OrdersTab() {
                                 </div>
                               )}
                             </div>
-                            <div className="flex flex-col">
-                              <h5 className="text-sm font-bold text-brand-black line-clamp-1 mb-1">
+                            <div className="flex flex-col min-w-0">
+                              <h5 className="text-sm font-bold text-brand-black line-clamp-1 mb-1 break-words">
                                 {productName}
                               </h5>
-                              <div className="flex items-center gap-3 text-xs font-medium text-brand-brown/60">
+                              <div className="flex items-center gap-3 text-xs font-medium text-brand-brown/60 flex-wrap">
                                 <span>Qty: <strong className="text-brand-black">{item.quantity}</strong></span>
                                 <span className="w-1 h-1 bg-brand-brown/20 rounded-full" />
                                 <span>₹{item.unit_price} / unit</span>
@@ -198,13 +198,13 @@ export default function OrdersTab() {
                             </div>
                           </div>
 
-                          <div className="sm:ml-auto">
+                          <div className="sm:ml-auto shrink-0">
                             {order.status?.toLowerCase() !== "delivered" ? (
                               <span className="text-xs font-semibold text-brand-brown/40 italic">
                                 Review available after delivery
                               </span>
                             ) : alreadyReviewed ? (
-                              <div className="flex items-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100 w-fit">
+                              <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100 w-fit">
                                 <CheckCircle2 size={14} strokeWidth={2.5} />
                                 Reviewed
                               </div>

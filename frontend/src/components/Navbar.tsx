@@ -18,6 +18,9 @@ import {
   Menu,
   LayoutDashboard,
   Store,
+  Info,
+  Handshake,
+  Newspaper,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -390,7 +393,7 @@ export default function Navbar() {
             onClick={() => setMenuOpen(false)}
             className="flex items-center gap-4 py-4 border-b border-gray-100 font-bold text-brand-black active:text-brand-orange"
           >
-            <Store size={20} className="text-brand-orange" /> About
+            <Info size={20} className="text-brand-orange" /> About
           </Link>
 
           <Link
@@ -398,7 +401,7 @@ export default function Navbar() {
             onClick={() => setMenuOpen(false)}
             className="flex items-center gap-4 py-4 border-b border-gray-100 font-bold text-brand-black active:text-brand-orange"
           >
-            <Package size={20} className="text-brand-orange" /> Become a Partner
+            <Handshake size={20} className="text-brand-orange" /> Become a Partner
           </Link>
 
           <Link
@@ -406,7 +409,7 @@ export default function Navbar() {
             onClick={() => setMenuOpen(false)}
             className="flex items-center gap-4 py-4 border-b border-gray-100 font-bold text-brand-black active:text-brand-orange"
           >
-            <LayoutDashboard size={20} className="text-brand-orange" /> Blogs
+            <Newspaper size={20} className="text-brand-orange" /> Blogs
           </Link>
 
           {isLogged && isAdmin && (

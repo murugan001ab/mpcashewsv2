@@ -73,7 +73,7 @@ export default function AddressesTab() {
   return (
     <div className="max-w-4xl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <h3 className="text-xl font-extrabold text-brand-black tracking-tight">Saved Addresses</h3>
           <p className="text-sm font-medium text-brand-brown/60 mt-1">
@@ -83,7 +83,7 @@ export default function AddressesTab() {
         {!form && (
           <button
             onClick={() => setForm({ ...EMPTY_ADDRESS_FORM })}
-            className="flex items-center justify-center gap-2 bg-brand-orange hover:bg-brand-brown text-white text-sm font-bold py-2.5 px-5 rounded-xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-brand-orange hover:bg-brand-brown text-white text-sm font-bold py-3 sm:py-2.5 px-5 rounded-xl transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
           >
             <Plus size={16} strokeWidth={2.5} /> Add New Address
           </button>
@@ -110,13 +110,13 @@ export default function AddressesTab() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
           {addresses.map((addr) => {
             const TypeIcon = TYPE_ICON[addr.address_type] ?? Home;
             return (
               <div
                 key={addr.id}
-                className={`group relative bg-white border p-6 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md ${
+                className={`group relative min-w-0 bg-white border p-5 sm:p-6 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md ${
                   addr.is_default
                     ? "border-brand-orange/40 ring-1 ring-brand-orange/10"
                     : "border-brand-brown/10 hover:border-brand-brown/30"
@@ -129,13 +129,14 @@ export default function AddressesTab() {
                 )}
 
                 <div className="mt-1 mb-4">
-                  <h4 className="text-[15px] font-extrabold text-brand-black mb-2 flex items-center gap-2">
-                    <TypeIcon size={16} className="text-brand-brown/40" /> {addr.name}
+                  <h4 className="text-[15px] font-extrabold text-brand-black mb-2 flex items-center gap-2 flex-wrap">
+                    <TypeIcon size={16} className="text-brand-brown/40 shrink-0" />
+                    <span className="truncate max-w-[65%]">{addr.name}</span>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-brand-brown/40 bg-brand-brown/5 px-2 py-0.5 rounded-full">
                       {addr.address_type}
                     </span>
                   </h4>
-                  <p className="text-sm text-brand-brown/80 leading-relaxed max-w-[90%]">
+                  <p className="text-sm text-brand-brown/80 leading-relaxed max-w-[90%] break-words">
                     {addr.house_flat}
                     {addr.street_area ? `, ${addr.street_area}` : ""}
                     {addr.landmark ? `, ${addr.landmark}` : ""}
@@ -144,7 +145,7 @@ export default function AddressesTab() {
                     {addr.district ? `, ${addr.district}` : ""}, {addr.state} -{" "}
                     <span className="font-semibold text-brand-black">{addr.pincode}</span>
                   </p>
-                  <div className="flex items-center gap-1.5 mt-3 text-sm font-medium text-brand-black">
+                  <div className="flex items-center gap-1.5 mt-3 text-sm font-medium text-brand-black break-words">
                     <Phone size={14} className="text-brand-brown/40" />
                     {addr.phone_number}
                   </div>
@@ -153,13 +154,13 @@ export default function AddressesTab() {
                 <div className="flex items-center gap-2 pt-4 border-t border-brand-brown/5">
                   <button
                     onClick={() => setForm(addr)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-brand-black bg-gray-50 hover:bg-brand-cream hover:text-brand-orange transition-colors border border-brand-brown/5"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold text-brand-black bg-gray-50 hover:bg-brand-cream hover:text-brand-orange transition-colors border border-brand-brown/5"
                   >
                     <Edit2 size={13} strokeWidth={2.5} /> Edit
                   </button>
                   <button
                     onClick={() => handleDelete(addr.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold text-red-500 bg-red-50 hover:bg-red-500 hover:text-white transition-colors border border-red-100"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-bold text-red-500 bg-red-50 hover:bg-red-500 hover:text-white transition-colors border border-red-100"
                   >
                     <Trash2 size={13} strokeWidth={2.5} /> Delete
                   </button>

@@ -219,14 +219,14 @@ function CartContent() {
             return (
               <div
                 key={item.id}
-                className={`grid grid-cols-1 md:grid-cols-12 gap-4 items-center border-b border-brand-brown/5 group overflow-hidden transition-all ease-in duration-[280ms] ${
+                className={`flex flex-col md:grid md:grid-cols-12 gap-4 md:items-center border-b border-brand-brown/5 group overflow-hidden transition-all ease-in duration-[280ms] ${
                   isRemoving
                     ? "max-h-0 py-0 my-0 opacity-0 -translate-x-8 scale-[0.97] pointer-events-none border-transparent"
-                    : "max-h-[220px] py-6 opacity-100 translate-x-0 scale-100"
+                    : "max-h-[420px] md:max-h-[220px] py-6 opacity-100 translate-x-0 scale-100"
                 }`}
               >
                 {/* Info Column */}
-                <div className="col-span-1 md:col-span-6 flex gap-5">
+                <div className="md:col-span-6 flex gap-5">
                   {/* Image */}
                   <div 
                     className="w-24 h-24 md:w-28 md:h-28 bg-brand-cream/30 rounded-2xl overflow-hidden cursor-pointer flex-shrink-0 border border-brand-brown/10 relative"
@@ -276,12 +276,38 @@ function CartContent() {
                 </div>
 
                 {/* Desktop Price */}
-                <div className="hidden md:block col-span-2 text-center font-semibold text-brand-black/70 text-[15px]">
+                <div className="hidden md:block md:col-span-2 text-center font-semibold text-brand-black/70 text-[15px]">
                   ₹{itemPrice.toFixed(2)}
                 </div>
 
-                {/* Quantity Stepper */}
-                <div className="col-span-2 flex justify-start md:justify-center mt-2 md:mt-0">
+                {/* Mobile: quantity stepper + line total, side by side (own row, no grid span tricks) */}
+                <div className="flex md:hidden items-center justify-between mt-1">
+                  <div className="flex items-center justify-between w-28 h-10 bg-white border border-brand-orange/20 rounded-xl overflow-hidden shadow-sm">
+                    <button
+                      disabled={busy || item.quantity <= 1}
+                      onClick={() => handleUpdate(item, item.quantity - 1)}
+                      className="w-10 h-full flex items-center justify-center text-brand-orange hover:bg-brand-orange/10 transition-colors disabled:opacity-30"
+                    >
+                      <Minus size={14} strokeWidth={2.5} />
+                    </button>
+                    <span className="font-bold text-sm text-brand-black tabular-nums">
+                      {item.quantity}
+                    </span>
+                    <button
+                      disabled={busy}
+                      onClick={() => handleUpdate(item, item.quantity + 1)}
+                      className="w-10 h-full flex items-center justify-center text-brand-orange hover:bg-brand-orange/10 transition-colors disabled:opacity-30"
+                    >
+                      <Plus size={14} strokeWidth={2.5} />
+                    </button>
+                  </div>
+                  <span className="font-extrabold text-brand-black text-base">
+                    ₹{(itemPrice * item.quantity).toFixed(0)}
+                  </span>
+                </div>
+
+                {/* Desktop Quantity Stepper */}
+                <div className="hidden md:flex md:col-span-2 justify-center">
                   <div className="flex items-center justify-between w-28 h-10 bg-white border border-brand-orange/20 rounded-xl overflow-hidden shadow-sm">
                     <button 
                       disabled={busy || item.quantity <= 1}
@@ -303,8 +329,8 @@ function CartContent() {
                   </div>
                 </div>
 
-                {/* Total */}
-                <div className="hidden md:block col-span-2 text-right font-extrabold text-brand-black text-[17px]">
+                {/* Desktop Total */}
+                <div className="hidden md:block md:col-span-2 text-right font-extrabold text-brand-black text-[17px]">
                   ₹{(itemPrice * item.quantity).toFixed(0)}
                 </div>
               </div>

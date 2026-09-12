@@ -297,24 +297,51 @@ export default function AdminBlogPage() {
           <Field label="Featured image">
             <div className="flex items-center gap-3">
               {form.featured_image ? (
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-brand-brown/10 shrink-0">
-                  <Image src={form.featured_image} alt="" fill className="object-cover" unoptimized />
-                </div>
-              ) : null}
-              <label className="w-20 h-20 rounded-xl border-2 border-dashed border-brand-brown/20 flex items-center justify-center text-brand-brown/40 hover:text-brand-orange hover:border-brand-orange/40 cursor-pointer transition-colors shrink-0">
-                {uploading ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUploadFeaturedImage(file);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
+                <>
+                  <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-brand-brown/10 shrink-0">
+                    <Image src={form.featured_image} alt="" fill className="object-cover" unoptimized />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-brand-brown/15 text-xs font-semibold text-brand-brown/70 hover:text-brand-orange hover:border-brand-orange/40 cursor-pointer transition-colors">
+                      {uploading ? <Loader2 size={13} className="animate-spin" /> : <Pencil size={13} />}
+                      Replace
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleUploadFeaturedImage(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, featured_image: "" }))}
+                      className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-200 text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={13} /> Remove
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <label className="w-20 h-20 rounded-xl border-2 border-dashed border-brand-brown/20 flex items-center justify-center text-brand-brown/40 hover:text-brand-orange hover:border-brand-orange/40 cursor-pointer transition-colors shrink-0">
+                  {uploading ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadFeaturedImage(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
             </div>
           </Field>
 
