@@ -5,12 +5,13 @@
 // per-item "buy now" order type), then opens Razorpay checkout for it.
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Loader2, CheckCircle2, Package, ArrowLeft, ShieldCheck, Tag, X } from "lucide-react";
+import { MapPin, Loader2, CheckCircle2, Package, ArrowLeft, ShieldCheck, Tag, X, Plus } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import * as addressService from "@/services/addressService";
 import type { Address } from "@/services/addressService";
+import AddressForm, { EMPTY_ADDRESS_FORM, type AddressFormState } from "@/components/AddressForm";
 import * as orderService from "@/services/orderService";
 import * as paymentService from "@/services/paymentService";
 import * as couponService from "@/services/couponService";
@@ -51,6 +52,11 @@ function CheckoutContent() {
   const [error, setError] = useState<string | null>(null);
   const rzpRef = useRef<RazorpayInstance | null>(null);
 
+  // "+ Add New Address" inline modal — reuses the same AddressForm as the
+  // profile page instead of redirecting away from checkout.
+  const [addressForm, setAddressForm] = useState<AddressFormState | null>(null);
+  const [savingAddress, setSavingAddress] = useState(false);
+
   // Coupon (optional) — applying it here only previews the discount against
   // the cart subtotal; it's actually consumed once the order is placed with
   // this same code (see orderService.createOrder's coupon_code field).
@@ -73,16 +79,43 @@ function CheckoutContent() {
   }, []);
 
   useEffect(() => {
-    addressService
+    loadAddresses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadAddresses = () => {
+    setLoadingAddresses(true);
+    return addressService
       .getAddresses()
       .then((list) => {
         setAddresses(list);
         const def = list.find((a) => a.is_default) ?? list[0];
-        if (def) setSelectedId(def.id);
+        if (def) setSelectedId((prev) => prev ?? def.id);
+        return list;
       })
-      .catch(console.error)
+      .catch((e) => {
+        console.error(e);
+        return [];
+      })
       .finally(() => setLoadingAddresses(false));
-  }, []);
+  };
+
+  const handleSaveNewAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addressForm) return;
+    setSavingAddress(true);
+    try {
+      const created = await addressService.addAddress(addressForm as Omit<Address, "id">);
+      setAddressForm(null);
+      const list = await loadAddresses();
+      setSelectedId(created.id ?? list.find((a) => a.is_default)?.id ?? null);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to save address.");
+    } finally {
+      setSavingAddress(false);
+    }
+  };
 
   const { subtotal, tax, shipping, total: totalBeforeDiscount } = totals;
   const discount = appliedCoupon?.discount ?? 0;
@@ -232,10 +265,10 @@ function CheckoutContent() {
               <div className="bg-gray-50 border border-dashed border-brand-brown/20 rounded-2xl p-6 text-center">
                 <p className="text-brand-brown/70 font-medium mb-4">You don't have a saved address yet.</p>
                 <button
-                  onClick={() => router.push("/profile?tab=addresses")}
+                  onClick={() => setAddressForm({ ...EMPTY_ADDRESS_FORM })}
                   className="bg-brand-orange hover:bg-brand-brown text-white px-6 py-3 rounded-xl font-bold transition-all"
                 >
-                  Add an Address
+                  📍 Add Delivery Address
                 </button>
               </div>
             ) : (
@@ -255,10 +288,15 @@ function CheckoutContent() {
                       {isSelected && (
                         <CheckCircle2 size={20} className="absolute top-4 right-4 text-brand-orange" fill="currentColor" strokeWidth={0} />
                       )}
-                      <p className="font-bold text-brand-black text-sm mb-1 pr-6">{addr.name}</p>
+                      <p className="font-bold text-brand-black text-sm mb-1 pr-6 flex items-center gap-2">
+                        {addr.name}
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-brand-brown/40 bg-brand-brown/5 px-1.5 py-0.5 rounded-full">
+                          {addr.address_type}
+                        </span>
+                      </p>
                       <p className="text-sm text-brand-brown/70 leading-relaxed pr-6">
-                        {addr.address_line1}
-                        {addr.address_line2 ? `, ${addr.address_line2}` : ""}
+                        {addr.house_flat}
+                        {addr.street_area ? `, ${addr.street_area}` : ""}
                         <br />
                         {addr.city}, {addr.state} - {addr.pincode}
                       </p>
@@ -266,6 +304,14 @@ function CheckoutContent() {
                     </button>
                   );
                 })}
+
+                <button
+                  onClick={() => setAddressForm({ ...EMPTY_ADDRESS_FORM })}
+                  className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-brand-brown/20 hover:border-brand-orange/50 hover:text-brand-orange text-brand-brown/50 rounded-2xl p-5 transition-colors min-h-[110px]"
+                >
+                  <Plus size={20} strokeWidth={2.5} />
+                  <span className="text-sm font-bold">Add New Address</span>
+                </button>
               </div>
             )}
           </div>
@@ -413,6 +459,21 @@ function CheckoutContent() {
           </div>
         </div>
       </div>
+
+      {addressForm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-brand-black/40 backdrop-blur-sm" onClick={() => setAddressForm(null)} />
+          <div className="relative w-full max-w-xl max-h-[88vh] overflow-y-auto rounded-2xl">
+            <AddressForm
+              form={addressForm}
+              setForm={setAddressForm}
+              onSubmit={handleSaveNewAddress}
+              onCancel={() => setAddressForm(null)}
+              saving={savingAddress}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

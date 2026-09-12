@@ -1,18 +1,26 @@
 // src/services/addressService.ts
-// Translates between UI field names (name, phone_number, pincode) and
-// backend field names (full_name, phone, postal_code) to avoid 422s.
+// Translates between UI field names (name, phone_number, pincode, houseFlat,
+// streetArea) and backend field names (full_name, phone, postal_code,
+// address_line1, address_line2) to avoid 422s.
 import { get, post, patch, del } from "./api";
+
+export type AddressType = "home" | "work" | "other";
 
 export interface Address {
   id: string | number;
   name: string;
   phone_number: string;
-  address_line1: string;
-  address_line2?: string;
+  house_flat: string; // backend: address_line1
+  street_area?: string; // backend: address_line2
+  landmark?: string;
   city: string;
+  district?: string;
   state: string;
   pincode: string;
   country: string;
+  address_type: AddressType;
+  latitude?: number | null;
+  longitude?: number | null;
   is_default: boolean;
 }
 
@@ -22,10 +30,15 @@ interface ApiAddress {
   phone: string;
   address_line1: string;
   address_line2?: string | null;
+  landmark?: string | null;
   city: string;
+  district?: string | null;
   state: string;
   postal_code: string;
   country: string;
+  address_type?: AddressType;
+  latitude?: number | null;
+  longitude?: number | null;
   is_default: boolean;
 }
 
@@ -33,12 +46,17 @@ const fromApi = (a: ApiAddress): Address => ({
   id: a.id,
   name: a.full_name,
   phone_number: a.phone,
-  address_line1: a.address_line1,
-  address_line2: a.address_line2 ?? "",
+  house_flat: a.address_line1,
+  street_area: a.address_line2 ?? "",
+  landmark: a.landmark ?? "",
   city: a.city,
+  district: a.district ?? "",
   state: a.state,
   pincode: a.postal_code,
   country: a.country,
+  address_type: a.address_type ?? "home",
+  latitude: a.latitude ?? null,
+  longitude: a.longitude ?? null,
   is_default: a.is_default,
 });
 
@@ -46,12 +64,17 @@ const toApi = (a: Partial<Address>): Record<string, unknown> => {
   const payload: Record<string, unknown> = {};
   if (a.name !== undefined) payload.full_name = a.name;
   if (a.phone_number !== undefined) payload.phone = a.phone_number;
-  if (a.address_line1 !== undefined) payload.address_line1 = a.address_line1;
-  if (a.address_line2 !== undefined) payload.address_line2 = a.address_line2;
+  if (a.house_flat !== undefined) payload.address_line1 = a.house_flat;
+  if (a.street_area !== undefined) payload.address_line2 = a.street_area;
+  if (a.landmark !== undefined) payload.landmark = a.landmark;
   if (a.city !== undefined) payload.city = a.city;
+  if (a.district !== undefined) payload.district = a.district;
   if (a.state !== undefined) payload.state = a.state;
   if (a.pincode !== undefined) payload.postal_code = a.pincode;
   if (a.country !== undefined) payload.country = a.country;
+  if (a.address_type !== undefined) payload.address_type = a.address_type;
+  if (a.latitude !== undefined) payload.latitude = a.latitude;
+  if (a.longitude !== undefined) payload.longitude = a.longitude;
   if (a.is_default !== undefined) payload.is_default = a.is_default;
   return payload;
 };
