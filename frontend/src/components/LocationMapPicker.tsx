@@ -18,6 +18,12 @@ interface LeafletMarker {
   on: (event: string, handler: (e: { latlng: { lat: number; lng: number } }) => void) => void;
   getLatLng: () => { lat: number; lng: number };
 }
+interface LeafletCircle {
+  setLatLng: (latlng: [number, number]) => void;
+  setRadius: (radius: number) => void;
+  addTo: (m: LeafletMap) => LeafletCircle;
+  remove: () => void;
+}
 interface LeafletMap {
   setView: (latlng: [number, number], zoom: number) => void;
   on: (event: string, handler: (e: { latlng: { lat: number; lng: number } }) => void) => void;
@@ -27,6 +33,7 @@ interface LeafletGlobal {
   map: (el: HTMLElement) => LeafletMap;
   tileLayer: (url: string, opts: Record<string, unknown>) => { addTo: (m: LeafletMap) => void };
   marker: (latlng: [number, number], opts?: Record<string, unknown>) => LeafletMarker & { addTo: (m: LeafletMap) => LeafletMarker };
+  circle: (latlng: [number, number], opts?: Record<string, unknown>) => LeafletCircle;
 }
 
 declare global {
@@ -69,9 +76,12 @@ export default function LocationMapPicker({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
+  const circleRef = useRef<LeafletCircle | null>(null);
+  const watchIdRef = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
   const [locating, setLocating] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -90,9 +100,21 @@ export default function LocationMapPicker({
       }).addTo(map);
 
       const marker = L.marker(DEFAULT_CENTER, { draggable: true }).addTo(map);
-      marker.on("dragend", (e) => setCoords({ lat: e.latlng.lat, lng: e.latlng.lng }));
+      // A manual drag/tap overrides whatever GPS fix drew the accuracy
+      // circle, so the circle must go with it -- otherwise it stays
+      // frozen at the old GPS spot and misrepresents the new pin.
+      const clearAccuracyCircle = () => {
+        circleRef.current?.remove();
+        circleRef.current = null;
+        setAccuracy(null);
+      };
+      marker.on("dragend", (e) => {
+        clearAccuracyCircle();
+        setCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
+      });
       map.on("click", (e) => {
         marker.setLatLng([e.latlng.lat, e.latlng.lng]);
+        clearAccuracyCircle();
         setCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
       });
 
@@ -102,11 +124,54 @@ export default function LocationMapPicker({
     });
     return () => {
       cancelled = true;
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
       mapRef.current?.remove();
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A single getCurrentPosition() call on desktop/laptop Wi-Fi often returns
+  // a coarse network-based fix (accuracy in the hundreds of meters) before
+  // the GPS radio has a chance to lock on. watchPosition() keeps listening
+  // and we redraw the pin each time a *more* accurate reading comes in,
+  // stopping once we hit a good-enough fix or a max wait so the UI doesn't
+  // stall forever.
+  const GOOD_ACCURACY_METERS = 25;
+  const MAX_WATCH_MS = 15000;
+
+  const applyPosition = (lat: number, lng: number, acc: number) => {
+    setCoords({ lat, lng });
+    setAccuracy(acc);
+    mapRef.current?.setView([lat, lng], 17);
+    markerRef.current?.setLatLng([lat, lng]);
+    const L = window.L;
+    if (L && mapRef.current) {
+      if (!circleRef.current) {
+        circleRef.current = L.circle([lat, lng], {
+          radius: acc,
+          color: "#f97316",
+          fillColor: "#f97316",
+          fillOpacity: 0.12,
+          weight: 1,
+        }).addTo(mapRef.current);
+      } else {
+        circleRef.current.setLatLng([lat, lng]);
+        circleRef.current.setRadius(acc);
+      }
+    }
+  };
+
+  const stopWatch = () => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setLocating(false);
+  };
 
   const handleUseCurrentLocation = () => {
     setError("");
@@ -115,20 +180,41 @@ export default function LocationMapPicker({
       return;
     }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
+    setAccuracy(null);
+
+    let bestAccuracy = Infinity;
+    // Track locally instead of reading the `coords` state in the timeout
+    // below -- that closure would capture a stale value from this render
+    // and never see updates `applyPosition` makes via setState.
+    let gotReading = false;
+    const maxWaitTimer = window.setTimeout(() => {
+      if (!gotReading) {
+        setError("Couldn't get a location fix in time. You can still tap the map to pick a spot.");
+      }
+      stopWatch();
+    }, MAX_WATCH_MS);
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setCoords({ lat, lng });
-        mapRef.current?.setView([lat, lng], 17);
-        markerRef.current?.setLatLng([lat, lng]);
-        setLocating(false);
+        const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
+        gotReading = true;
+        // Ignore readings that are worse than our best so far so the pin
+        // doesn't jump backwards to a stale, less accurate fix.
+        if (acc <= bestAccuracy) {
+          bestAccuracy = acc;
+          applyPosition(lat, lng, acc);
+        }
+        if (acc <= GOOD_ACCURACY_METERS) {
+          window.clearTimeout(maxWaitTimer);
+          stopWatch();
+        }
       },
       () => {
+        window.clearTimeout(maxWaitTimer);
         setError("Couldn't get your location. You can still tap the map to pick a spot.");
-        setLocating(false);
+        stopWatch();
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: MAX_WATCH_MS, maximumAge: 0 }
     );
   };
 
@@ -145,8 +231,13 @@ export default function LocationMapPicker({
       </button>
 
       {error && <p className="text-xs font-semibold text-red-500">{error}</p>}
+      {accuracy !== null && !error && (
+        <p className="text-xs text-brand-brown/50">
+          Accurate to ~{Math.round(accuracy)}m{locating ? " — refining…" : ""}
+        </p>
+      )}
 
-      <div className="relative rounded-2xl overflow-hidden border border-brand-brown/15" style={{ height: 320 }}>
+      <div className="relative rounded-2xl overflow-hidden border border-brand-brown/15 h-64 sm:h-80">
         <div ref={containerRef} className="w-full h-full" />
         {!ready && (
           <div className="absolute inset-0 flex items-center justify-center bg-brand-cream/40">

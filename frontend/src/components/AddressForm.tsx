@@ -144,7 +144,7 @@ export default function AddressForm({
   };
 
   return (
-    <div className="bg-gray-50 border border-brand-brown/10 rounded-2xl p-6 md:p-8">
+    <div className="bg-gray-50 border border-brand-brown/10 rounded-2xl p-4 sm:p-6 md:p-8">
       <div className="flex items-center gap-3 mb-6 border-b border-brand-brown/5 pb-4">
         <div className="w-10 h-10 bg-white border border-brand-brown/10 flex items-center justify-center rounded-full text-brand-orange shadow-sm">
           <MapPin size={20} />

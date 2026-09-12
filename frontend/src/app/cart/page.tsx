@@ -187,7 +187,7 @@ function CartContent() {
   const progressPct = Math.min((subtotal / freeShippingThreshold) * 100, 100);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 md:px-6 py-10 md:py-16 pt-28 md:pt-32 min-h-screen">
+    <div className="max-w-3xl mx-auto px-4 md:px-6 pt-28 md:pt-32 pb-28 md:pb-16 min-h-screen">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="flex items-baseline gap-4 mb-8 border-b border-brand-brown/10 pb-6">
@@ -421,10 +421,30 @@ function CartContent() {
           </div>
         </div>
       </div>
+
+      {/* Mobile sticky checkout bar -- the order summary + Checkout button
+          sits below cart items and the related-products row, which can be
+          a long scroll on a phone. Keeps the primary action reachable. */}
+      <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-brand-brown/10 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col leading-tight">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-brand-brown/50">Total</span>
+            <span className="text-lg font-extrabold text-brand-black">₹{total.toFixed(0)}</span>
+          </div>
+          <button
+            onClick={() => router.push("/checkout")}
+            className="flex-1 max-w-[220px] flex items-center justify-center gap-2 bg-brand-black hover:bg-brand-brown text-white px-6 py-3 rounded-xl font-bold text-sm transition-all shadow-md"
+          >
+            Checkout <ArrowRight size={16} strokeWidth={2.5} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-export default function CartPage() {
+function CartPage() {
   return <CartContent />;
 }
+
+export default CartPage;

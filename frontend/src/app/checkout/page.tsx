@@ -239,7 +239,7 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-10 md:py-16 pt-28 md:pt-32 min-h-screen">
+    <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 pt-28 md:pt-32 pb-28 lg:pb-16 min-h-screen">
       <button
         onClick={() => router.push("/cart")}
         className="flex items-center gap-1.5 text-sm font-bold text-brand-brown/60 hover:text-brand-orange transition-colors mb-8 w-fit"
@@ -460,17 +460,68 @@ function CheckoutContent() {
         </div>
       </div>
 
+      {/* Mobile sticky pay bar -- the summary card only sticks at lg:, so on
+          phones/tablets the Pay button can be a long scroll away below a
+          large cart. Mirrors the same action so it's always reachable. */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-brand-brown/10 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col leading-tight">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-brand-brown/50">Total</span>
+            <span className="text-lg font-extrabold text-brand-black">₹{total.toFixed(0)}</span>
+          </div>
+          <button
+            onClick={handlePlaceOrder}
+            disabled={placing || loadingAddresses || addresses.length === 0}
+            className="flex-1 max-w-[220px] flex items-center justify-center gap-2 bg-brand-black hover:bg-brand-brown text-white px-6 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
+          >
+            {placing ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Processing…
+              </>
+            ) : (
+              <>Pay ₹{total.toFixed(0)}</>
+            )}
+          </button>
+        </div>
+      </div>
+
       {addressForm && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4">
           <div className="absolute inset-0 bg-brand-black/40 backdrop-blur-sm" onClick={() => setAddressForm(null)} />
-          <div className="relative w-full max-w-xl max-h-[88vh] overflow-y-auto rounded-2xl">
-            <AddressForm
-              form={addressForm}
-              setForm={setAddressForm}
-              onSubmit={handleSaveNewAddress}
-              onCancel={() => setAddressForm(null)}
-              saving={savingAddress}
-            />
+          <div className="relative w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[88vh] bg-white sm:rounded-2xl flex flex-col overflow-hidden">
+            {/* Small top bar so the page's own "Back to Cart" (hidden behind
+                this full-screen overlay on mobile) is still reachable while
+                adding an address -- otherwise a new user with no saved
+                address has no way back to the cart except finishing the form. */}
+            <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-brand-brown/10 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddressForm(null);
+                  router.push("/cart");
+                }}
+                className="flex items-center gap-1.5 text-xs font-bold text-brand-brown/60 hover:text-brand-orange transition-colors"
+              >
+                <ArrowLeft size={14} strokeWidth={2.5} /> Back to Cart
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddressForm(null)}
+                aria-label="Close"
+                className="w-8 h-8 flex items-center justify-center rounded-full text-brand-brown/50 hover:bg-gray-100 hover:text-brand-black transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <AddressForm
+                form={addressForm}
+                setForm={setAddressForm}
+                onSubmit={handleSaveNewAddress}
+                onCancel={() => setAddressForm(null)}
+                saving={savingAddress}
+              />
+            </div>
           </div>
         </div>
       )}
