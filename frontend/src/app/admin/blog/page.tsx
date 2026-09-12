@@ -33,6 +33,7 @@ import {
   EmptyState,
   Badge,
 } from "@/components/admin/ui";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 
 const EMPTY_FORM: BlogPostPayload = {
   title: "",
@@ -326,14 +327,18 @@ export default function AdminBlogPage() {
             />
           </Field>
 
-          <Field label="Content" hint="HTML — this is rendered as-is on the post page">
-            <textarea
-              className={`${inputClass} font-mono text-xs`}
-              rows={12}
+          <Field label="Content" hint="Write like a normal document — use the toolbar for bold, headings, font size, images, links, etc.">
+            <RichTextEditor
               value={form.content}
-              onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-              required
+              onChange={(html) => setForm((f) => ({ ...f, content: html }))}
+              onUploadImage={async (file) => {
+                const res = await adminService.uploadImage(file, "blog");
+                return res.url;
+              }}
             />
+            {!form.content.trim() && (
+              <p className="text-[11px] text-red-500 mt-1">Content is required.</p>
+            )}
           </Field>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
