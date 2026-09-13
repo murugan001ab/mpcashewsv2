@@ -178,16 +178,21 @@ async function getCategoryEntries(): Promise<MetadataRoute.Sitemap> {
     const entries: MetadataRoute.Sitemap = (data ?? []).map(
       (category) => {
         /**
-         * IMPORTANT:
-         * Use URL + URLSearchParams instead of manually
-         * concatenating "&".
+         * IMPORTANT: only category_id, no second query param.
+         *
+         * Next.js's built-in sitemap generator does not XML-escape "&"
+         * in <loc> (open bug: vercel/next.js#77340), so a URL with two
+         * query params joined by "&" produces invalid sitemap.xml.
+         * URLSearchParams doesn't help — it URL-encodes values, it
+         * doesn't XML-escape the "&" separator itself.
+         *
+         * The `category` param was only ever a cosmetic label for the
+         * page heading (src/app/products/page.tsx falls back to "Our
+         * Cashews" without it) — filtering itself runs entirely off
+         * category_id, so dropping it changes nothing functionally.
          *
          * Example generated URL:
-         *
-         * https://mpcashews.in/products?category_id=123&category=Whole%20Cashews
-         *
-         * Next.js will correctly XML-escape "&" as "&amp;"
-         * when generating sitemap.xml.
+         * https://mpcashews.in/products?category_id=123
          */
         const categoryUrl = new URL(
           "/products",
@@ -197,11 +202,6 @@ async function getCategoryEntries(): Promise<MetadataRoute.Sitemap> {
         categoryUrl.searchParams.set(
           "category_id",
           category.id
-        );
-
-        categoryUrl.searchParams.set(
-          "category",
-          category.name
         );
 
         return {
