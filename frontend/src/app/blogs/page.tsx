@@ -38,7 +38,7 @@ export default function BlogsPage() {
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 pt-24 min-h-screen">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 pb-10 md:pb-16 min-h-screen">
       <div className="mb-10 flex flex-col gap-1">
         <span className="text-brand-orange text-xs font-black uppercase tracking-[0.2em]">From the journal</span>
         <h1 className="text-3xl md:text-4xl font-black text-brand-black uppercase leading-tight">Blog</h1>

@@ -67,7 +67,7 @@ export default function BlogPostPage() {
   }
 
   return (
-    <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 pt-24 min-h-screen">
+    <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 lg:pt-28 pb-10 md:pb-16 min-h-screen">
       <button
         onClick={() => router.push("/blogs")}
         className="flex items-center gap-1.5 text-sm font-bold text-brand-brown/60 hover:text-brand-orange transition-colors mb-8 w-fit"
