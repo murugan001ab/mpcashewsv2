@@ -5,7 +5,7 @@
 // cards), with a filter sidebar (price, cashew grade, minimum rating) and
 // sort. Clicking a card still goes to the normal product detail page with
 // that exact variant pre-selected.
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal, X, ChevronLeft, ChevronRight, PackageSearch } from "lucide-react";
 import * as productService from "@/services/productService";
@@ -33,7 +33,7 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = { grades: [], minPrice: "", maxPrice: "", minRating: null, sort: "" };
 
-export default function ProductsShopPage() {
+function ProductsShopPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -396,5 +396,37 @@ export default function ProductsShopPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// useSearchParams() opts the whole tree into client-side rendering during
+// prerender unless it sits below a Suspense boundary — without this,
+// `next build` fails the static export step for this route entirely
+// ("should be wrapped in a suspense boundary") rather than just warning.
+// The fallback mirrors the real loading skeleton's dimensions so there's no
+// layout jump once ProductsShopPageInner mounts and takes over.
+export default function ProductsShopPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 pt-20 sm:pt-24 min-h-screen">
+          <div className="mb-6 sm:mb-8 flex flex-col gap-1">
+            <span className="text-brand-orange text-xs font-black uppercase tracking-[0.2em]">Shop All</span>
+            <h1 className="text-2xl sm:text-3xl font-black text-brand-black uppercase leading-tight">Our Cashews</h1>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i}>
+                <div className="aspect-square skeleton rounded-2xl mb-3" />
+                <div className="w-4/5 h-3.5 skeleton-light rounded-md mb-2" />
+                <div className="w-1/2 h-4 skeleton-light rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <ProductsShopPageInner />
+    </Suspense>
   );
 }

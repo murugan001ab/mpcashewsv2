@@ -1,6 +1,6 @@
 "use client";
 // src/app/products/[id]/page.tsx
-import React, { useState, useEffect, useContext, useRef, useCallback } from "react";
+import React, { useState, useEffect, useContext, useRef, useCallback, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -51,7 +51,7 @@ interface Product {
   variants?: Variant[];
 }
 
-export default function ProductDetailsPage() {
+function ProductDetailsPageInner() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -703,5 +703,31 @@ export default function ProductDetailsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// useSearchParams() (added to read ?variant=) requires a Suspense boundary
+// during prerender or `next build` fails the static export step for this
+// route entirely. The fallback mirrors the real loading skeleton above so
+// there's no visible jump once ProductDetailsPageInner takes over.
+export default function ProductDetailsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 md:py-16 pt-20 sm:pt-24 min-h-screen">
+          <div className="w-14 h-4 sm:w-16 sm:h-5 skeleton rounded-md mb-5 sm:mb-8" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 lg:gap-16">
+            <div className="lg:col-span-6 aspect-square skeleton rounded-2xl sm:rounded-3xl" />
+            <div className="lg:col-span-6 flex flex-col gap-3 pt-1 lg:pt-6">
+              <div className="w-24 h-2.5 skeleton rounded-md" />
+              <div className="w-full h-7 sm:h-9 md:h-12 skeleton rounded-xl" />
+              <div className="w-2/3 h-7 sm:h-9 md:h-12 skeleton rounded-xl" />
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <ProductDetailsPageInner />
+    </Suspense>
   );
 }
