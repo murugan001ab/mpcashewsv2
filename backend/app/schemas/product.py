@@ -134,6 +134,7 @@ class ProductBase(BaseModel):
     short_description: Optional[str] = None
     is_featured: bool = False
     category_id: uuid.UUID
+    grade: Optional[str] = None
 
 
 class ProductCreate(ProductBase):
@@ -148,6 +149,7 @@ class ProductUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_featured: Optional[bool] = None
     category_id: Optional[uuid.UUID] = None
+    grade: Optional[str] = None
 
 
 class ProductResponse(ProductBase):
@@ -158,6 +160,11 @@ class ProductResponse(ProductBase):
     category: CategoryResponse
     variants: List[ProductVariantResponse] = []
     images: List[ProductImageResponse] = []
+    # Computed from approved reviews, not stored columns — populated by
+    # ProductRepository._attach_ratings() before the ORM object is handed
+    # to this response model. None/0 when the product has no reviews yet.
+    average_rating: Optional[float] = None
+    review_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -171,9 +178,12 @@ class ProductListResponse(BaseModel):
     is_active: bool
     is_featured: bool
     sort_order: int
+    grade: Optional[str] = None
     category: CategoryResponse
     variants: List[ProductVariantResponse] = []
     images: List[ProductImageResponse] = []
+    average_rating: Optional[float] = None
+    review_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -191,3 +201,12 @@ class PaginatedProducts(BaseModel):
     page: int
     page_size: int
     pages: int
+
+
+class ProductFilterOptions(BaseModel):
+    """Powers the /products filter sidebar: the distinct grades in use and
+    the min/max price across all active variants, so the frontend can size
+    its price-range inputs sensibly instead of guessing bounds."""
+    grades: List[str]
+    min_price: Optional[Decimal] = None
+    max_price: Optional[Decimal] = None

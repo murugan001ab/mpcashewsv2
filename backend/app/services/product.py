@@ -123,6 +123,11 @@ class ProductService:
         query: Optional[str] = None,
         category_id: Optional[UUID] = None,
         is_featured: Optional[bool] = None,
+        grades: Optional[List[str]] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
+        min_rating: Optional[float] = None,
+        sort: Optional[str] = None,
         page: int = 1,
         page_size: int = 20,
         include_inactive: bool = False,
@@ -132,11 +137,20 @@ class ProductService:
             query=query,
             category_id=category_id,
             is_featured=is_featured,
+            grades=grades,
+            min_price=min_price,
+            max_price=max_price,
+            min_rating=min_rating,
+            sort=sort,
             skip=skip,
             limit=limit,
             include_inactive=include_inactive,
         )
         return {"items": products, **paginate(total, page, page_size)}
+
+    async def get_filter_options(self) -> dict:
+        grades, min_price, max_price = await self.repo.get_filter_options()
+        return {"grades": grades, "min_price": min_price, "max_price": max_price}
 
     async def get_by_id(self, product_id: UUID) -> Product:
         product = await self.repo.get_with_relations(product_id)

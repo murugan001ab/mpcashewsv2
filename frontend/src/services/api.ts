@@ -13,6 +13,13 @@ const api = axios.create({
     Accept: "application/json",
     "Content-Type": "application/json",
   },
+  // Array-valued params (e.g. listProducts({ grade: ["W240", "W320"] }))
+  // must serialize as repeated keys (?grade=W240&grade=W320) to match
+  // FastAPI's Query(List[str]) parsing. Axios's default array serializer
+  // instead appends "[]" to the key (?grade[]=W240&grade[]=W320), which
+  // FastAPI silently ignores — { indexes: null } switches to the
+  // repeated-key form for every request through this instance.
+  paramsSerializer: { indexes: null },
 });
 
 // Routes that legitimately 401 for a logged-out visitor and must NEVER

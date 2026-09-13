@@ -1,7 +1,7 @@
 "use client";
 // src/app/products/[id]/page.tsx
 import React, { useState, useEffect, useContext, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Star, ShoppingCart, Heart, ChevronLeft, Minus, Plus,
@@ -54,6 +54,7 @@ interface Product {
 export default function ProductDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isLogged } = useContext(AuthContext);
   const { addToCart, increment, decrement, cartItems } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
@@ -80,11 +81,20 @@ export default function ProductDetailsPage() {
         setProduct(data);
         if (data.variants && data.variants.length > 0) {
           const sorted = [...data.variants].sort((a, b) => a.weight_grams - b.weight_grams);
-          setSelectedVariantId(sorted[0].id);
+          // Honor ?variant=<id> from the shop grid (VariantProductCard links
+          // here as /products/{id}?variant={variantId}) so clicking the
+          // "1kg" card lands with 1kg pre-selected instead of silently
+          // resetting to the lightest variant.
+          const variantParam = searchParams.get("variant");
+          const matched = variantParam ? sorted.find((v) => String(v.id) === variantParam) : undefined;
+          setSelectedVariantId((matched ?? sorted[0]).id);
         }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+    // Only re-fetch when the product id changes — searchParams is read once
+    // per product load, not on every subsequent param change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const variants: Variant[] = product?.variants

@@ -39,6 +39,13 @@ class Product(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Cashew grade, e.g. "W240", "W320", "W180", "SW240" — a free-text product
+    # attribute (not a foreign key) since the set of grades is small and
+    # admin-typed, not a managed taxonomy like Category. Nullable because
+    # not every product (e.g. non-cashew items, if any get added later) has
+    # a meaningful grade. Indexed since the /products filter sidebar filters
+    # on it directly.
+    grade: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
     category_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

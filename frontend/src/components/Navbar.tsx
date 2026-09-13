@@ -196,6 +196,9 @@ export default function Navbar() {
           <Link href="/" className={navLink("/")}>
             Home
           </Link>
+          <Link href="/products" className={navLink("/products")}>
+            Shop
+          </Link>
           <Link href="/about" className={navLink("/about")}>
             About
           </Link>
@@ -386,6 +389,14 @@ export default function Navbar() {
             className="flex items-center gap-4 py-4 border-b border-gray-100 font-bold text-brand-black active:text-brand-orange"
           >
             <Store size={20} className="text-brand-orange" /> Home
+          </Link>
+
+          <Link
+            href="/products"
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-4 py-4 border-b border-gray-100 font-bold text-brand-black active:text-brand-orange"
+          >
+            <Store size={20} className="text-brand-orange" /> Shop
           </Link>
 
           <Link

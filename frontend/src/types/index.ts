@@ -106,9 +106,12 @@ export interface Product {
   is_active: boolean;
   is_featured: boolean;
   sort_order: number;
+  grade?: string;
   category: Category;
   variants: Variant[];
   images: ProductImage[];
+  average_rating?: number | null;
+  review_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -127,8 +130,19 @@ export interface ProductListParams {
   q?: string;
   category_id?: string;
   is_featured?: boolean;
+  grade?: string[];
+  min_price?: number;
+  max_price?: number;
+  min_rating?: number;
+  sort?: "price_asc" | "price_desc" | "rating_desc";
   page?: number;
   page_size?: number;
+}
+
+export interface ProductFilterOptions {
+  grades: string[];
+  min_price?: number | null;
+  max_price?: number | null;
 }
 
 export interface ProductPayload {
@@ -139,6 +153,7 @@ export interface ProductPayload {
   is_active?: boolean;
   is_featured?: boolean;
   category_id: string;
+  grade?: string;
 }
 
 export interface CategoryPayload {

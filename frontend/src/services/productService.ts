@@ -4,6 +4,7 @@ import type {
   Product,
   ProductPayload,
   ProductListParams,
+  ProductFilterOptions,
   Category,
   CategoryPayload,
   PaginatedResponse,
@@ -16,6 +17,11 @@ import type {
 // ── Products ────────────────────────────────────────────────────────────────
 export const listProducts = (params?: ProductListParams): Promise<PaginatedResponse<Product>> =>
   get<PaginatedResponse<Product>>("/products", { params });
+
+// Distinct grades in use + min/max price across active products, for
+// sizing the /products filter sidebar's checkboxes and price inputs.
+export const getProductFilters = (): Promise<ProductFilterOptions> =>
+  get<ProductFilterOptions>("/products/filters");
 
 export const createProduct = (payload: ProductPayload | AdminProductCreatePayload): Promise<Product> =>
   post<Product>("/products", payload);

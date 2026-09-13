@@ -11,6 +11,7 @@ from app.schemas.product import (
     ProductCreate, ProductUpdate, ProductResponse,
     ProductListResponse, PaginatedProducts, ProductImageResponse, ProductImageReorder,
     ProductVariantCreate, ProductVariantUpdate, ProductVariantResponse, ProductReorder,
+    ProductFilterOptions,
 )
 from app.services.product import ProductService, ProductVariantService
 
@@ -26,19 +27,40 @@ async def list_products(
     q: Optional[str] = Query(None, description="Search query"),
     category_id: Optional[UUID] = Query(None),
     is_featured: Optional[bool] = Query(None),
+    grade: Optional[List[str]] = Query(None, description="Filter to one or more cashew grades, e.g. grade=W240&grade=W320"),
+    min_price: Optional[float] = Query(None, ge=0),
+    max_price: Optional[float] = Query(None, ge=0),
+    min_rating: Optional[float] = Query(None, ge=1, le=5, description="Only products averaging at least this rating"),
+    sort: Optional[str] = Query(None, description="One of: price_asc, price_desc, rating_desc. Omit for default (featured order, newest first)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    """List / search products with pagination (public)."""
+    """List / search / filter products with pagination (public). Powers both
+    the homepage grid (no filters) and the /products shop page (filter
+    sidebar: grade, price range, minimum rating, sort)."""
     service = ProductService(db)
     return await service.get_list(
         query=q,
         category_id=category_id,
         is_featured=is_featured,
+        grades=grade,
+        min_price=min_price,
+        max_price=max_price,
+        min_rating=min_rating,
+        sort=sort,
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/filters", response_model=ProductFilterOptions)
+async def get_product_filter_options(db: AsyncSession = Depends(get_db)):
+    """Public: distinct cashew grades in use and the min/max price across
+    active products, so the /products filter sidebar can render checkboxes
+    and size its price range inputs without guessing bounds."""
+    service = ProductService(db)
+    return await service.get_filter_options()
 
 
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)

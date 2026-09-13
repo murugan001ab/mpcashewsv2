@@ -32,9 +32,15 @@ const EMPTY_ADD_FORM = {
   short_description: "",
   description: "",
   category_id: "",
+  grade: "",
   is_featured: false,
   variants: [{ ...EMPTY_VARIANT }] as ProductVariantPayload[],
 };
+
+// Common cashew grade codes, offered as suggestions via a datalist — the
+// field stays free text since new grades come up occasionally and admins
+// shouldn't be blocked waiting on a code change to type one in.
+const GRADE_SUGGESTIONS = ["W180", "W210", "W240", "W320", "W450", "SW240", "SW320", "LWP", "SWP", "BB"];
 
 function priceRange(variants: Variant[]): string {
   if (!variants.length) return "—";
@@ -104,6 +110,7 @@ export default function ProductsPage() {
         short_description: addForm.short_description.trim() || undefined,
         description: addForm.description.trim() || undefined,
         category_id: addForm.category_id,
+        grade: addForm.grade.trim() || undefined,
         is_featured: addForm.is_featured,
         variants: addForm.variants.filter((v) => v.sku.trim()),
       });
@@ -472,6 +479,21 @@ export default function ProductsPage() {
             </select>
           </Field>
 
+          <Field label="Cashew grade" hint="e.g. W240 — shown on the product card and filterable on the shop page">
+            <input
+              className={inputClass}
+              list="grade-suggestions"
+              value={addForm.grade}
+              onChange={(e) => setAddForm((f) => ({ ...f, grade: e.target.value }))}
+              placeholder="e.g. W240"
+            />
+            <datalist id="grade-suggestions">
+              {GRADE_SUGGESTIONS.map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+          </Field>
+
           <Field label="Short description" hint="Shown on product cards">
             <input
               className={inputClass}
@@ -635,6 +657,7 @@ function EditProductModal({
   const [shortDesc, setShortDesc] = useState(product.short_description ?? "");
   const [desc, setDesc] = useState(product.description ?? "");
   const [categoryId, setCategoryId] = useState(product.category.id);
+  const [grade, setGrade] = useState(product.grade ?? "");
   const [isFeatured, setIsFeatured] = useState(product.is_featured);
   const [isActive, setIsActive] = useState(product.is_active);
   const [saving, setSaving] = useState(false);
@@ -664,6 +687,7 @@ function EditProductModal({
         short_description: shortDesc.trim() || undefined,
         description: desc.trim() || undefined,
         category_id: categoryId,
+        grade: grade.trim() || undefined,
         is_featured: isFeatured,
         is_active: isActive,
       });
@@ -797,6 +821,15 @@ function EditProductModal({
               </select>
             </Field>
           </div>
+          <Field label="Cashew grade" hint="e.g. W240">
+            <input
+              className={inputClass}
+              list="grade-suggestions"
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+              placeholder="e.g. W240"
+            />
+          </Field>
           <Field label="Short description">
             <input className={inputClass} value={shortDesc} onChange={(e) => setShortDesc(e.target.value)} />
           </Field>
