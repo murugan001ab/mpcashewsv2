@@ -63,6 +63,7 @@ export default function ProductDetailsPage() {
   const [selectedImg, setSelectedImg] = useState(0);
   const [activeTab, setActiveTab] = useState<"description" | "specifications" | "reviews">("description");
   const [addingCart, setAddingCart] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<RelatedProduct[]>([]);
   const [relatedPage, setRelatedPage] = useState(1);
@@ -202,26 +203,123 @@ export default function ProductDetailsPage() {
   };
 
   const handleBuyNow = async () => {
+    if (buyingNow) return; // guard against double-tap adding twice / opening checkout twice
     if (!isLogged) { router.push("/login"); return; }
     if (!activeVariant.id) return;
-    if (!detailCartItem) {
-      await addToCart(String(activeVariant.id), 1);
+    setBuyingNow(true);
+    try {
+      if (!detailCartItem) {
+        await addToCart(String(activeVariant.id), 1);
+      }
+      router.push("/checkout");
+    } catch (e) {
+      console.error(e);
+      setBuyingNow(false);
     }
-    router.push("/checkout");
   };
 
-  // ── Loading Skeleton ──────────────────────────────────────────────────────
+  // ── Loading Skeleton ───────────────────────────────────────────────
+  // Mirrors the real layout's own breakpoints (grid-cols-1 -> lg:grid-cols-12,
+  // flex-col -> sm:flex-row action buttons, etc) with sizes tuned per
+  // breakpoint, rather than one desktop-sized block shrunk down — so it
+  // doesn't jump/reflow once real content swaps in on either screen size.
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 pt-24 min-h-screen">
-        <div className="w-24 h-6 bg-gray-200 animate-pulse rounded-md mb-8" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14">
-          <div className="aspect-square bg-gray-100 animate-pulse rounded-3xl" />
-          <div className="flex flex-col gap-6 pt-4">
-            <div className="w-1/3 h-6 bg-gray-200 animate-pulse rounded-md" />
-            <div className="w-3/4 h-12 bg-gray-200 animate-pulse rounded-xl" />
-            <div className="w-full h-16 bg-gray-200 animate-pulse rounded-md" />
-            <div className="w-full h-14 bg-gray-200 animate-pulse rounded-xl mt-4" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 md:py-16 pt-20 sm:pt-24 min-h-screen">
+        <div className="w-14 h-4 sm:w-16 sm:h-5 skeleton rounded-md mb-5 sm:mb-8" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 lg:gap-16 mb-12 sm:mb-16">
+          {/* Image gallery */}
+          <div className="lg:col-span-6 flex flex-col gap-3 sm:gap-4">
+            <div className="aspect-square skeleton rounded-2xl sm:rounded-3xl" />
+            <div className="flex gap-2.5 sm:gap-3 overflow-x-auto">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 skeleton rounded-xl sm:rounded-2xl" />
+              ))}
+            </div>
+          </div>
+
+          {/* Info column */}
+          <div className="lg:col-span-6 flex flex-col pt-1 lg:pt-6">
+            <div className="w-24 h-2.5 sm:w-28 sm:h-3 skeleton rounded-md mb-2.5 sm:mb-3" />
+            {/* Title wraps to two lines on mobile just like the real h1 does at this width */}
+            <div className="w-full h-7 sm:h-9 md:h-12 skeleton rounded-xl mb-2" />
+            <div className="w-2/3 sm:w-1/2 h-7 sm:h-9 md:h-12 skeleton rounded-xl mb-5 sm:mb-6" />
+
+            <div className="flex items-center gap-2 mb-5 sm:mb-6">
+              <div className="w-20 sm:w-24 h-3.5 sm:h-4 skeleton rounded-md" />
+              <div className="w-24 sm:w-28 h-3.5 sm:h-4 skeleton-light rounded-md" />
+            </div>
+
+            <div className="flex items-end gap-3 mb-5 sm:mb-6">
+              <div className="w-20 sm:w-24 h-8 sm:h-9 skeleton rounded-lg" />
+              <div className="w-14 sm:w-16 h-5 sm:h-6 skeleton-light rounded-lg mb-1" />
+            </div>
+
+            <div className="w-36 sm:w-40 h-3.5 sm:h-4 skeleton-light rounded-md mb-5 sm:mb-6" />
+
+            {/* short_description — two lines on mobile, matches leading-relaxed wrap */}
+            <div className="w-full h-3.5 sm:h-4 skeleton-light rounded-md mb-2" />
+            <div className="w-4/5 h-3.5 sm:h-4 skeleton-light rounded-md mb-5 sm:mb-6" />
+
+            {/* Variant selector — pills wrap on narrow screens same as the real buttons */}
+            <div className="w-20 sm:w-24 h-2.5 sm:h-3 skeleton rounded-md mb-2.5 sm:mb-3" />
+            <div className="flex flex-wrap gap-2 sm:gap-2.5 mb-6 sm:mb-8">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="w-14 sm:w-16 h-8 sm:h-9 skeleton-light rounded-xl" />
+              ))}
+            </div>
+
+            <div className="h-px bg-brand-brown/10 mb-5 sm:mb-6" />
+
+            {/* Attributes — stays 2-up even on small phones, same as the real grid */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-14 sm:h-16 skeleton-light rounded-xl" />
+              ))}
+            </div>
+
+            {/* Actions — stacked full-width on mobile, side-by-side from sm: up */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 sm:mb-8">
+              <div className="flex-1 h-12 sm:h-14 skeleton rounded-xl" />
+              <div className="flex-1 h-12 sm:h-14 skeleton rounded-xl" />
+            </div>
+
+            {/* Trust badges */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-16 sm:h-[72px] skeleton-light rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="max-w-4xl mx-auto mt-10 sm:mt-16 md:mt-24">
+          <div className="flex gap-4 sm:gap-6 border-b border-brand-brown/10 mb-6 sm:mb-8 pb-3 sm:pb-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="w-16 sm:w-24 h-3.5 sm:h-4 skeleton rounded-md" />
+            ))}
+          </div>
+          <div className="w-full h-3.5 sm:h-4 skeleton-light rounded-md mb-2.5 sm:mb-3" />
+          <div className="w-5/6 h-3.5 sm:h-4 skeleton-light rounded-md mb-2.5 sm:mb-3" />
+          <div className="w-2/3 h-3.5 sm:h-4 skeleton-light rounded-md" />
+        </div>
+
+        {/* Related products row — horizontally scrollable on mobile just like
+            the real one, so the skeleton doesn't collapse to a single tall
+            block while the real row scrolls sideways once loaded. */}
+        <div className="mt-12 sm:mt-16 md:mt-24">
+          <div className="w-40 h-3 skeleton-light rounded-md mb-2" />
+          <div className="w-56 sm:w-64 h-6 sm:h-8 skeleton rounded-lg mb-6 sm:mb-8" />
+          <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="w-[160px] sm:w-[210px] md:w-[240px] flex-shrink-0">
+                <div className="aspect-square skeleton rounded-2xl mb-3" />
+                <div className="w-4/5 h-3.5 skeleton-light rounded-md mb-2" />
+                <div className="w-1/2 h-4 skeleton-light rounded-md" />
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -418,15 +516,15 @@ export default function ProductDetailsPage() {
           {/* Attributes */}
           <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
             {activeWgt && (
-              <div className="bg-gray-50 rounded-xl p-3 border border-brand-brown/5">
+              <div className="bg-gray-50 rounded-xl p-3 border border-brand-brown/5 min-w-0">
                 <span className="block text-[11px] font-bold uppercase tracking-widest text-brand-brown/50 mb-1">Weight</span>
-                <span className="font-extrabold text-brand-black">{fmtWeight(activeWgt)}</span>
+                <span className="font-extrabold text-brand-black break-words">{fmtWeight(activeWgt)}</span>
               </div>
             )}
             {activeSku && (
-              <div className="bg-gray-50 rounded-xl p-3 border border-brand-brown/5">
+              <div className="bg-gray-50 rounded-xl p-3 border border-brand-brown/5 min-w-0">
                 <span className="block text-[11px] font-bold uppercase tracking-widest text-brand-brown/50 mb-1">SKU</span>
-                <span className="font-extrabold text-brand-black">{activeSku}</span>
+                <span className="font-extrabold text-brand-black break-words">{activeSku}</span>
               </div>
             )}
           </div>
@@ -462,10 +560,15 @@ export default function ProductDetailsPage() {
 
             <button
               onClick={handleBuyNow}
-              disabled={!inStock}
+              disabled={!inStock || buyingNow}
               className="flex-1 flex items-center justify-center gap-2 h-14 bg-brand-black text-white hover:bg-brand-brown rounded-xl font-bold text-[15px] transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
             >
-              <Zap size={18} strokeWidth={2.5} className="text-brand-orange" /> Buy Now
+              {buyingNow ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <Zap size={18} strokeWidth={2.5} className="text-brand-orange" />
+              )}
+              {buyingNow ? "Processing…" : "Buy Now"}
             </button>
           </div>
 
@@ -533,14 +636,14 @@ export default function ProductDetailsPage() {
                   ]
                     .filter((item) => item.value)
                     .map((item, idx) => (
-                      <div key={idx} className="flex justify-between py-3 border-b border-brand-brown/5">
-                        <span className="font-bold text-brand-brown/60 text-sm">{item.label}</span>
+                      <div key={idx} className="flex justify-between gap-3 py-3 border-b border-brand-brown/5">
+                        <span className="font-bold text-brand-brown/60 text-sm shrink-0">{item.label}</span>
                         {item.isBadge ? (
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${inStock ? "bg-brand-green/10 text-brand-green" : "bg-red-100 text-red-600"}`}>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${inStock ? "bg-brand-green/10 text-brand-green" : "bg-red-100 text-red-600"}`}>
                             {item.value}
                           </span>
                         ) : (
-                          <span className="font-bold text-brand-black text-sm">{item.value}</span>
+                          <span className="font-bold text-brand-black text-sm text-right break-words min-w-0">{item.value}</span>
                         )}
                       </div>
                     ))}

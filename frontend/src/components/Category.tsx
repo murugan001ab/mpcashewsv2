@@ -9,13 +9,20 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 import * as productService from "@/services/productService";
+import { getCached, setCached } from "@/utils/dataCache";
 import type { Category } from "@/types";
 
 const PLACEHOLDER = "/cat-placeholder.png";
+const CATEGORIES_CACHE_KEY = "cache:categories";
 
 export default function CategoryScroller() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>(
+    () => getCached<Category[]>(CATEGORIES_CACHE_KEY) ?? []
+  );
+  // Only show the loading skeleton when we have nothing cached to show yet
+  // (first-ever visit). Every visit after that renders the last-known
+  // categories immediately while the fetch below refreshes them quietly.
+  const [loading, setLoading] = useState(() => getCached<Category[]>(CATEGORIES_CACHE_KEY) === undefined);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
 
@@ -25,17 +32,17 @@ export default function CategoryScroller() {
     productService
       .listCategories()
       .then((data) => {
-        setCategories(
-          (data || []).map((c) => ({
-            ...c,
-            slug:
-              c.slug ||
-              c.name
-                ?.toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^\w-]/g, ""),
-          }))
-        );
+        const normalized = (data || []).map((c) => ({
+          ...c,
+          slug:
+            c.slug ||
+            c.name
+              ?.toLowerCase()
+              .replace(/\s+/g, "-")
+              .replace(/[^\w-]/g, ""),
+        }));
+        setCategories(normalized);
+        setCached(CATEGORIES_CACHE_KEY, normalized);
       })
       .catch(console.error)
       .finally(() => setLoading(false));

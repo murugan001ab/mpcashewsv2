@@ -52,3 +52,54 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Safety net: several mobile-only horizontal-scroll bugs have come from
+   free-form/long content (addresses, SKUs, product names) widening a flex
+   or grid item beyond the viewport. Fixing each occurrence individually is
+   still done where found, but this stops any future one from leaking into
+   a page-level scrollbar. */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Shimmer skeleton — used on loading states (product detail page, etc)
+   instead of a flat animate-pulse block. A soft light band sweeps across a
+   neutral base color, which reads as "actively loading" more clearly than
+   pulsing opacity and matches the shimmer pattern most shopping apps use.
+   `.skeleton` is the default (mid-gray) tone; `.skeleton-light` is for
+   skeleton pieces sitting over a lighter background (e.g. secondary text
+   lines) so they don't look as heavy as the primary blocks. */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background-color: #e5e2dd;
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 400px 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.skeleton-light {
+  background-color: #efece7;
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 400px 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}

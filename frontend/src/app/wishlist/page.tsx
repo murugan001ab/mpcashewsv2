@@ -10,11 +10,12 @@ import type { WishlistItem } from "@/types";
 
 function WishlistContent() {
   const router = useRouter();
-  const { addToCart } = useCart();
+  const { addToCart, cartItems } = useCart();
 
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
   const loadWishlist = useCallback(async () => {
@@ -54,8 +55,13 @@ function WishlistContent() {
   const handleAddToCart = async (item: WishlistItem) => {
     const variant =
       item.product?.variants?.find((v) => v.is_active) ?? item.product?.variants?.[0];
-    if (!variant) return;
-    await addToCart(variant.id, 1);
+    if (!variant || addingId === variant.id) return;
+    setAddingId(variant.id);
+    try {
+      await addToCart(variant.id, 1);
+    } finally {
+      setAddingId(null);
+    }
   };
 
 if (loading) {
@@ -136,6 +142,8 @@ if (loading) {
           const imageUrl = brokenImages[product.id] ? null : assetUrl(primaryImage?.url);
           const variant = product.variants?.find((v) => v.is_active) ?? product.variants?.[0];
           const price = parseFloat(String(variant?.discounted_price ?? variant?.price ?? "0"));
+          const isInCart = !!variant && cartItems.some((c) => c.variant?.id === variant.id);
+          const isAdding = !!variant && addingId === variant.id;
 
           return (
             <div
@@ -196,10 +204,14 @@ if (loading) {
                 </span>
                 <button
                   onClick={() => handleAddToCart(item)}
-                  disabled={!variant}
-                  className="mt-1 w-full bg-brand-black hover:bg-brand-brown disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wider py-2.5 rounded-xl transition-all active:scale-[.98]"
+                  disabled={!variant || isAdding || isInCart}
+                  className={`mt-1 w-full text-xs font-bold uppercase tracking-wider py-2.5 rounded-xl transition-all active:scale-[.98] disabled:opacity-70 ${
+                    isInCart
+                      ? "bg-brand-green/10 text-brand-green cursor-default"
+                      : "bg-brand-black hover:bg-brand-brown text-white disabled:opacity-40"
+                  }`}
                 >
-                  Add to Cart
+                  {isInCart ? "✓ In Cart" : isAdding ? "Adding…" : "Add to Cart"}
                 </button>
               </div>
             </div>

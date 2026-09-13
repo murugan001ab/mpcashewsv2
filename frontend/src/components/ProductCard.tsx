@@ -3,7 +3,7 @@
 // Ported from components/ProductCard.jsx.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Zap, Heart, Minus, Plus } from "lucide-react";
+import { ShoppingCart, Zap, Heart, Minus, Plus, Loader2 } from "lucide-react";
 import { HOST } from "@/config/env";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWishlist } from "@/contexts/WishlistContext";
@@ -44,6 +44,7 @@ export default function ProductCard({
 
   const variants = [...(product.variants ?? [])].sort((a, b) => a.weight_grams - b.weight_grams);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(variants[0]?.id ?? null);
+  const [buyingNow, setBuyingNow] = useState(false);
   const variant = variants.find((v) => v.id === selectedVariantId) ?? variants[0];
 
   const finalPrice = parseFloat(variant?.discounted_price ?? variant?.price ?? "0");
@@ -63,6 +64,16 @@ export default function ProductCard({
   const cartItem = cartItems.find((c) => c.variant?.id === variant?.id);
 
   const productWithVariant: ProductWithVariant = { ...product, selectedVariant: variant };
+
+  const handleBuyClick = async () => {
+    if (buyingNow) return; // guard against double-tap adding twice / opening checkout twice
+    setBuyingNow(true);
+    try {
+      await onBuyNow(productWithVariant);
+    } finally {
+      setBuyingNow(false);
+    }
+  };
 
   return (
     <div className="@container group relative bg-brand-cream/30 border border-brand-brown/5 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
@@ -225,11 +236,15 @@ export default function ProductCard({
 
           <button
             className="w-full @[210px]:w-auto flex items-center justify-center gap-1.5 bg-brand-black hover:bg-brand-brown text-white text-sm font-bold rounded-xl px-4 h-10 transition-all duration-300 whitespace-nowrap shadow-md hover:shadow-lg disabled:opacity-50"
-            onClick={() => onBuyNow(productWithVariant)}
-            disabled={outOfStock}
+            onClick={handleBuyClick}
+            disabled={outOfStock || buyingNow}
           >
-            <Zap size={14} strokeWidth={2.5} className="text-brand-orange" />
-            Buy
+            {buyingNow ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Zap size={14} strokeWidth={2.5} className="text-brand-orange" />
+            )}
+            {buyingNow ? "..." : "Buy"}
           </button>
         </div>
       </div>

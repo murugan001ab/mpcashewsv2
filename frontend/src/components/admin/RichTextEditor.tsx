@@ -95,7 +95,9 @@ export default function RichTextEditor({
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const savedRangeRef = useRef<Range | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
   // Only used to force the toolbar's "active state" (bold/italic/etc.) to refresh.
   const [, forceTick] = useState(0);
@@ -114,9 +116,33 @@ export default function RichTextEditor({
     if (editorRef.current) onChange(editorRef.current.innerHTML);
   }, [onChange]);
 
+  // The toolbar's <select> dropdowns (font size, paragraph style) live
+  // outside the contentEditable div. Opening a native <select> moves focus
+  // away from the editor, which collapses the browser's text selection —
+  // so by the time onChange fires, the highlighted text is already gone
+  // and execCommand has nothing to apply to. Explicitly saving the range
+  // on every interaction and restoring it right before running a command
+  // is what keeps "apply to the selected text" actually working.
+  const saveSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+      savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    }
+  }, []);
+
+  const restoreSelection = useCallback(() => {
+    const sel = window.getSelection();
+    if (sel && savedRangeRef.current) {
+      sel.removeAllRanges();
+      sel.addRange(savedRangeRef.current);
+    }
+  }, []);
+
   const exec = (command: string, arg?: string) => {
+    restoreSelection();
     editorRef.current?.focus();
     document.execCommand(command, false, arg);
+    saveSelection();
     emitChange();
     forceTick((n) => n + 1);
   };
@@ -156,6 +182,15 @@ export default function RichTextEditor({
   };
 
   const handleFileSelected = async (file: File) => {
+    // Mirrors backend MAX_FILE_SIZE_MB. Without this check, a large photo
+    // fails with a raw 413 from the hosting platform's edge before our own
+    // backend ever gets to return a friendlier message.
+    const MAX_UPLOAD_MB = 5;
+    setUploadError(null);
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setUploadError(`That image is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Please choose one under ${MAX_UPLOAD_MB}MB.`);
+      return;
+    }
     setUploading(true);
     try {
       const url = await onUploadImage(file);
@@ -167,8 +202,13 @@ export default function RichTextEditor({
       } else {
         insertImageAtCursor(url);
       }
-    } catch {
-      window.alert("Image upload failed. Please try again.");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setUploadError(
+        status === 413
+          ? `That image is too large. Please choose one under ${MAX_UPLOAD_MB}MB.`
+          : "Image upload failed. Please try again."
+      );
     } finally {
       setUploading(false);
     }
@@ -204,7 +244,6 @@ export default function RichTextEditor({
         <select
           className="text-xs font-medium text-brand-brown/70 bg-transparent border border-brand-brown/15 rounded-lg px-2 py-1.5 mr-1 focus:outline-none focus:ring-2 focus:ring-brand-orange/40"
           defaultValue="p"
-          onMouseDown={(e) => e.preventDefault()}
           onChange={(e) => handleBlockType(e.target.value)}
           title="Paragraph style"
         >
@@ -218,7 +257,6 @@ export default function RichTextEditor({
         <select
           className="text-xs font-medium text-brand-brown/70 bg-transparent border border-brand-brown/15 rounded-lg px-2 py-1.5 mr-1 focus:outline-none focus:ring-2 focus:ring-brand-orange/40"
           defaultValue=""
-          onMouseDown={(e) => e.preventDefault()}
           onChange={(e) => {
             handleFontSize(e.target.value);
             e.target.value = "";
@@ -311,6 +349,12 @@ export default function RichTextEditor({
         {uploading && <span className="text-xs text-brand-brown/45 ml-1">Uploading…</span>}
       </div>
 
+      {uploadError && (
+        <div className="px-3 py-2 text-[12px] font-medium text-red-600 bg-red-50 border-b border-red-100">
+          {uploadError}
+        </div>
+      )}
+
       {selectedImage && (
         <div className="px-3 py-1.5 text-[11px] text-brand-orange bg-brand-orange/5 border-b border-brand-brown/10">
           Image selected — use the image icon to replace it, or the trash icon to delete it.
@@ -324,7 +368,11 @@ export default function RichTextEditor({
         suppressContentEditableWarning
         onInput={emitChange}
         onClick={handleEditorClick}
-        onKeyUp={() => forceTick((n) => n + 1)}
+        onMouseUp={saveSelection}
+        onKeyUp={() => {
+          saveSelection();
+          forceTick((n) => n + 1);
+        }}
         onBlur={emitChange}
         style={{ minHeight }}
         className="rte-content px-4 py-3 text-sm text-brand-black outline-none max-w-none [&_img.rte-selected]:ring-2 [&_img.rte-selected]:ring-brand-orange [&_img]:rounded-xl [&_a]:text-brand-orange [&_a]:underline [&_blockquote]:border-l-4 [&_blockquote]:border-brand-orange/30 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-brand-brown/70 [&_pre]:bg-brand-brown/5 [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:text-xs [&_pre]:overflow-x-auto [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-bold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"

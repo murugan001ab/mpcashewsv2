@@ -12,7 +12,10 @@ import ProductCard, { type ProductWithVariant } from "@/components/ProductCard";
 import CategoryScroller from "@/components/Category";
 import * as productService from "@/services/productService";
 import { useCart } from "@/contexts/CartContext";
+import { getCached, setCached } from "@/utils/dataCache";
 import type { Product } from "@/types";
+
+const PRODUCTS_CACHE_KEY = "cache:home-products";
 
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
 const cardAnim = {
@@ -42,14 +45,18 @@ function HomeContent() {
   const querySearch = searchParams.get("q") || "";
 
   const { cartItems, addToCart, increment, decrement } = useCart();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(() => getCached<Product[]>(PRODUCTS_CACHE_KEY) ?? []);
+  // Only show the loading skeleton when there's nothing cached to show yet
+  // (first-ever visit). Every visit after that renders the last-known
+  // products immediately while loadProducts refreshes them quietly below.
+  const [loading, setLoading] = useState(() => getCached<Product[]>(PRODUCTS_CACHE_KEY) === undefined);
 
   const loadProducts = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await productService.listProducts();
-      setProducts(res.items || []);
+      const items = res.items || [];
+      setProducts(items);
+      setCached(PRODUCTS_CACHE_KEY, items);
     } catch (e) {
       console.error(e);
     } finally {

@@ -5,7 +5,7 @@
 // per-item "buy now" order type), then opens Razorpay checkout for it.
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Loader2, CheckCircle2, Package, ArrowLeft, ShieldCheck, Tag, X, Plus } from "lucide-react";
+import { MapPin, Loader2, CheckCircle2, Package, ArrowLeft, ShieldCheck, Tag, X, Plus, AlertCircle } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
@@ -384,7 +384,12 @@ function CheckoutContent() {
                         if (couponError) setCouponError(null);
                       }}
                       placeholder="Coupon code"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-brand-brown/15 bg-white text-sm font-semibold text-brand-black placeholder:text-brand-brown/35 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-brand-orange/40 focus:border-brand-orange/40 transition uppercase"
+                      disabled={applyingCoupon}
+                      className={`flex-1 px-3.5 py-2.5 rounded-xl border bg-white text-sm font-semibold text-brand-black placeholder:text-brand-brown/35 placeholder:font-medium focus:outline-none focus:ring-2 transition uppercase disabled:opacity-60 ${
+                        couponError
+                          ? "border-red-300 focus:ring-red-200 focus:border-red-300"
+                          : "border-brand-brown/15 focus:ring-brand-orange/40 focus:border-brand-orange/40"
+                      }`}
                     />
                     <button
                       type="submit"
@@ -394,7 +399,12 @@ function CheckoutContent() {
                       {applyingCoupon ? <Loader2 size={16} className="animate-spin" /> : "Apply"}
                     </button>
                   </form>
-                  {couponError && <p className="text-red-500 text-xs font-semibold">{couponError}</p>}
+                  {couponError && (
+                    <p className="flex items-start gap-2 text-red-600 text-xs font-semibold bg-red-50 border border-red-100 rounded-lg px-3 py-2.5">
+                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                      {couponError}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

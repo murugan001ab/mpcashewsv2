@@ -108,12 +108,26 @@ export default function AdminBlogPage() {
   };
 
   const handleUploadFeaturedImage = async (file: File) => {
+    // Mirrors backend MAX_FILE_SIZE_MB (see backend/.env). Checking here
+    // stops the request before it's sent — large uploads were failing with
+    // a raw 413 from the hosting platform's edge, before ever reaching our
+    // own (friendlier) backend validation.
+    const MAX_UPLOAD_MB = 5;
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setModalError(`That image is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Please choose one under ${MAX_UPLOAD_MB}MB.`);
+      return;
+    }
     setUploading(true);
     try {
       const res = await adminService.uploadImage(file, "blog");
       setForm((f) => ({ ...f, featured_image: res.url }));
     } catch (err) {
-      setModalError(getErrorMessage(err, "Failed to upload image."));
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 413) {
+        setModalError(`That image is too large. Please choose one under ${MAX_UPLOAD_MB}MB.`);
+      } else {
+        setModalError(getErrorMessage(err, "Failed to upload image."));
+      }
     } finally {
       setUploading(false);
     }
