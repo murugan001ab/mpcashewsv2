@@ -131,6 +131,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     reloadCart();
   }, [reloadCart]);
 
+  // Safety net for guests: `totals` is otherwise only kept in sync by each
+  // mutation explicitly calling setTotals alongside setCartItems (see
+  // increment/decrement/removeItem below). If any one of those two calls
+  // is ever skipped — a thrown error partway through, a future code path
+  // that forgets to — cartItems and totals silently drift apart and the
+  // Order Summary stops reflecting what's actually in the cart (e.g.
+  // "remove item" not affecting the total). Guest totals are always fully
+  // derivable from cartItems, so just re-derive them here on every change
+  // instead of trusting every call site to keep two states in sync by hand.
+  useEffect(() => {
+    if (!isLogged) setTotals(computeGuestTotals(cartItems));
+  }, [isLogged, cartItems]);
+
   const addToCart = async (
     variantId: string,
     quantity = 1,
@@ -189,9 +202,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (mutatingRef.current.has(item.id)) return;
     mutatingRef.current.add(item.id);
     if (!isLogged) {
-      updateLocalItem(item.id, item.quantity + 1);
-      await reloadCart();
-      mutatingRef.current.delete(item.id);
+      // try/finally here matters: without it, a thrown error (e.g. a
+      // localStorage write failing in private-browsing mode) leaves this
+      // item's id stuck in mutatingRef forever — every future +/-/remove
+      // on that exact item then silently no-ops for the rest of the
+      // session, which looks like "cart actions stopped working" for that
+      // item specifically.
+      try {
+        updateLocalItem(item.id, item.quantity + 1);
+        await reloadCart();
+      } finally {
+        mutatingRef.current.delete(item.id);
+      }
       return;
     }
     const nextQuantity = item.quantity + 1;
@@ -212,9 +234,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (item.quantity <= 1 || mutatingRef.current.has(item.id)) return;
     mutatingRef.current.add(item.id);
     if (!isLogged) {
-      updateLocalItem(item.id, item.quantity - 1);
-      await reloadCart();
-      mutatingRef.current.delete(item.id);
+      try {
+        updateLocalItem(item.id, item.quantity - 1);
+        await reloadCart();
+      } finally {
+        mutatingRef.current.delete(item.id);
+      }
       return;
     }
     const nextQuantity = item.quantity - 1;
@@ -234,9 +259,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (mutatingRef.current.has(item.id)) return;
     mutatingRef.current.add(item.id);
     if (!isLogged) {
-      removeLocalItem(item.id);
-      await reloadCart();
-      mutatingRef.current.delete(item.id);
+      try {
+        removeLocalItem(item.id);
+        await reloadCart();
+      } finally {
+        mutatingRef.current.delete(item.id);
+      }
       return;
     }
     const prevItems = cartItems;
