@@ -11,15 +11,13 @@ import { Truck, ShieldCheck, Leaf, Star, ShoppingBag, Award, Zap, Heart } from "
 import ProductCard, { type ProductWithVariant } from "@/components/ProductCard";
 import CategoryScroller from "@/components/Category";
 import * as productService from "@/services/productService";
-import { getAuthSlides } from "@/services/authSlideService";
-import { assetUrl } from "@/config/env";
 import { useCart } from "@/contexts/CartContext";
 import { getCached, setCached } from "@/utils/dataCache";
 import type { Product } from "@/types";
 
-// Falls back to the local banner until the admin's default auth-slide image
-// (see src/app/admin/auth-slides) loads, or if they haven't added one yet —
-// same fallback the login/register carousel uses (src/components/AuthLayout.tsx).
+// Static hero banner — no longer pulled from the admin's auth-page slides
+// (that carousel is for the login/register screen only; the homepage hero
+// shouldn't change whenever someone edits those).
 const DEFAULT_HERO_IMAGE = "/cashews-banner.png";
 
 const PRODUCTS_CACHE_KEY = "cache:home-products";
@@ -67,27 +65,6 @@ function HomeContent() {
   // (first-ever visit). Every visit after that renders the last-known
   // products immediately while loadProducts refreshes them quietly below.
   const [loading, setLoading] = useState(true);
-
-  // Hero banner mirrors whatever the admin has set as the default (first,
-  // active) auth-page slide — one image, admin-managed in one place,
-  // instead of a separate hardcoded banner here.
-  const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
-
-  useEffect(() => {
-    let cancelled = false;
-    getAuthSlides()
-      .then((slides) => {
-        if (cancelled || slides.length === 0) return;
-        const url = assetUrl(slides[0].url);
-        if (url) setHeroImage(url);
-      })
-      .catch(() => {
-        // Keep the local banner — a failed fetch here shouldn't break the homepage.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -154,7 +131,7 @@ function HomeContent() {
       <section className="relative min-h-[90vh] flex flex-col justify-end overflow-hidden bg-brand-black">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={heroImage}
+          src={DEFAULT_HERO_IMAGE}
           alt=""
           aria-hidden
           className="absolute inset-0 w-full h-full object-cover opacity-40"
