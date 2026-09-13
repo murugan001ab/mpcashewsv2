@@ -7,7 +7,7 @@
 // failure) — kept consistent on purpose.
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ImagePlus, Loader2, GripVertical, Star, Trash2, Pencil, Eye, EyeOff, Images } from "lucide-react";
+import { ImagePlus, Loader2, GripVertical, Star, Trash2, Pencil, Eye, EyeOff, Images, RefreshCcw } from "lucide-react";
 import * as authSlideService from "@/services/authSlideService";
 import { assetUrl } from "@/config/env";
 import { getErrorMessage } from "@/utils/apiError";
@@ -18,13 +18,17 @@ import {
   ErrorNotice, LoadingBlock, EmptyState, Badge,
 } from "@/components/admin/ui";
 
-// Left panel on /login and /register is a full-height portrait background
-// (see src/components/AuthLayout.tsx) — 4:5 matches that shape at a size
-// large enough to stay sharp on big screens without the admin's original
-// photo (often much larger) getting uploaded as-is.
-const SLIDE_ASPECT = 4 / 5;
-const SLIDE_OUTPUT_WIDTH = 1200;
-const SLIDE_OUTPUT_HEIGHT = 1500;
+// Left panel on /login and /register (src/components/AuthLayout.tsx) is
+// `lg:w-[62%] xl:w-[65%]` of the viewport width by the FULL viewport height
+// — on real screens that's landscape-ish (roughly square at a 1024px-wide
+// laptop, up to ~1.2:1 on a 1920px monitor), not portrait. This used to be
+// 4:5 (portrait) here, which meant the image had to be scaled way up to
+// cover that wider box, cropping off a big chunk of whatever the admin
+// framed — the crop the admin picked barely resembled what showed on the
+// actual page. 4:3 tracks the real panel shape far more closely.
+const SLIDE_ASPECT = 4 / 3;
+const SLIDE_OUTPUT_WIDTH = 1600;
+const SLIDE_OUTPUT_HEIGHT = 1200;
 
 export default function AuthSlidesPage() {
   const [slides, setSlides] = useState<AuthSlideAdmin[]>([]);
@@ -46,6 +50,11 @@ export default function AuthSlidesPage() {
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [replacingSlide, setReplacingSlide] = useState<AuthSlideAdmin | null>(null);
+  const [pendingReplaceRawFile, setPendingReplaceRawFile] = useState<File | null>(null);
+  const [replacingImageId, setReplacingImageId] = useState<string | null>(null);
+  const [replaceError, setReplaceError] = useState("");
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
@@ -131,6 +140,23 @@ export default function AuthSlidesPage() {
     }
   };
 
+  const handleReplaceImage = async (cropped: File) => {
+    const slide = replacingSlide;
+    setPendingReplaceRawFile(null);
+    setReplacingSlide(null);
+    if (!slide) return;
+    setReplacingImageId(slide.id);
+    setReplaceError("");
+    try {
+      const updated = await authSlideService.replaceAuthSlideImage(slide.id, cropped);
+      setSlides((s) => s.map((x) => (x.id === slide.id ? updated : x)));
+    } catch (err) {
+      setReplaceError(getErrorMessage(err, "Failed to replace image."));
+    } finally {
+      setReplacingImageId(null);
+    }
+  };
+
   const handleDelete = async (slide: AuthSlideAdmin) => {
     if (deletingId) return;
     if (!window.confirm("Delete this slide? This can't be undone.")) return;
@@ -189,6 +215,7 @@ export default function AuthSlidesPage() {
       />
 
       {error && <ErrorNotice>{error}</ErrorNotice>}
+      {replaceError && <ErrorNotice>{replaceError}</ErrorNotice>}
 
       <div className="bg-white rounded-2xl border border-brand-brown/10 p-5">
         {loading ? (
@@ -232,7 +259,7 @@ export default function AuthSlidesPage() {
                     e.preventDefault();
                     handleDrop(slide.id);
                   }}
-                  className={`relative w-40 sm:w-44 rounded-2xl overflow-hidden border-2 group cursor-grab active:cursor-grabbing transition-all ${
+                  className={`relative w-56 sm:w-60 rounded-2xl overflow-hidden border-2 group cursor-grab active:cursor-grabbing transition-all ${
                     idx === 0 ? "border-brand-orange" : "border-brand-brown/10"
                   } ${draggedId === slide.id ? "opacity-40" : ""} ${
                     dragOverId === slide.id && draggedId && draggedId !== slide.id
@@ -240,7 +267,7 @@ export default function AuthSlidesPage() {
                       : ""
                   } ${!slide.is_active ? "grayscale" : ""}`}
                 >
-                  <div className="relative w-full h-44 sm:h-48">
+                  <div className="relative w-full h-40 sm:h-44">
                     <Image
                       src={assetUrl(slide.url) ?? ""}
                       alt=""
@@ -293,6 +320,32 @@ export default function AuthSlidesPage() {
                       <IconButton onClick={() => openEdit(slide)} title="Edit quote">
                         <Pencil size={13} />
                       </IconButton>
+                      <label
+                        title="Replace image"
+                        className={`w-8 h-8 inline-flex items-center justify-center rounded-lg text-brand-brown/60 hover:text-brand-black hover:bg-brand-brown/8 transition-colors ${
+                          replacingImageId === slide.id ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                        }`}
+                      >
+                        {replacingImageId === slide.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <RefreshCcw size={13} />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={replacingImageId === slide.id}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            if (file) {
+                              setReplacingSlide(slide);
+                              setPendingReplaceRawFile(file);
+                            }
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
                     </div>
                     <IconButton
                       onClick={() => handleDelete(slide)}
@@ -388,6 +441,21 @@ export default function AuthSlidesPage() {
           setUploadFile(cropped);
           setPendingRawFile(null);
         }}
+      />
+
+      {/* ── Replace image ──────────────────────────────────────────────── */}
+      <ImageCropModal
+        open={!!pendingReplaceRawFile}
+        file={pendingReplaceRawFile}
+        aspect={SLIDE_ASPECT}
+        outputWidth={SLIDE_OUTPUT_WIDTH}
+        outputHeight={SLIDE_OUTPUT_HEIGHT}
+        title="Crop replacement image"
+        onCancel={() => {
+          setPendingReplaceRawFile(null);
+          setReplacingSlide(null);
+        }}
+        onCropped={handleReplaceImage}
       />
 
       {/* ── Edit slide ──────────────────────────────────────────────────── */}

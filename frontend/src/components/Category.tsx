@@ -1,9 +1,9 @@
 "use client";
 // src/components/Category.tsx
-// Ported from components/Category.jsx (CategoryScroller).
-// NOTE: links to /category/[slug] — that route isn't migrated yet (it didn't
-// exist as its own page in the old app either; it was presumably meant to
-// filter Home). Left as-is for now, flagged for the page-migration pass.
+// NOTE: links to /products filtered by category_id — there's no separate
+// /category/[slug] page (and never was; that route doesn't exist, so this
+// used to 404). The shop page (src/app/products/page.tsx) already knows
+// how to read a category_id from the URL and filter server-side.
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -16,19 +16,37 @@ const PLACEHOLDER = "/cat-placeholder.png";
 const CATEGORIES_CACHE_KEY = "cache:categories";
 
 export default function CategoryScroller() {
-  const [categories, setCategories] = useState<Category[]>(
-    () => getCached<Category[]>(CATEGORIES_CACHE_KEY) ?? []
-  );
+  // NOTE: both of these used to be seeded straight from getCached() inside
+  // the useState initializer. getCached() returns undefined during SSR (no
+  // sessionStorage on the server) but can return real cached data on the
+  // client's very first render if this tab has visited before — so the
+  // server painted the loading skeleton while the client's first paint
+  // wanted the real grid. That mismatch made React discard and
+  // regenerate this whole subtree client-side (visible as a hydration
+  // error), which is what caused the mobile layout to look right for a
+  // moment and then jump/break shortly after. Cache is now only applied
+  // inside an effect below (after mount), so server and client agree on
+  // the first paint.
+  const [categories, setCategories] = useState<Category[]>([]);
   // Only show the loading skeleton when we have nothing cached to show yet
   // (first-ever visit). Every visit after that renders the last-known
   // categories immediately while the fetch below refreshes them quietly.
-  const [loading, setLoading] = useState(() => getCached<Category[]>(CATEGORIES_CACHE_KEY) === undefined);
+  const [loading, setLoading] = useState(true);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
 
   const rowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Applied after mount (not during initial render) so it can never
+    // disagree with the server-rendered HTML — see the note on the
+    // categories/loading state above.
+    const cached = getCached<Category[]>(CATEGORIES_CACHE_KEY);
+    if (cached) {
+      setCategories(cached);
+      setLoading(false);
+    }
+
     productService
       .listCategories()
       .then((data) => {
@@ -139,7 +157,7 @@ export default function CategoryScroller() {
               {categories.map((cat, i) => (
                 <Link
                   key={cat.slug || i}
-                  href={`/category/${cat.slug}`}
+                  href={`/products?category_id=${cat.id}&category=${encodeURIComponent(cat.name)}`}
                   className="flex justify-center sm:block sm:shrink-0 sm:snap-center"
                 >
                   <motion.div

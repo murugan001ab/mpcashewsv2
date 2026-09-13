@@ -57,6 +57,23 @@ class AuthSlideService:
         await self.db.refresh(slide)
         return slide
 
+    async def replace_image(self, slide_id: UUID, file: UploadFile) -> AuthSlide:
+        """Swap a slide's image in place (keeps id, quote, cite, sort_order,
+        is_active) — used by the admin "Replace image" action so an admin
+        doesn't have to delete and re-add a slide just to update the photo."""
+        slide = await self._get(slide_id)
+        old_file_id = slide.file_id
+
+        url, file_id = await ik_upload_image(file, folder="auth-slides")
+        slide.url = url
+        slide.file_id = file_id
+        await self.db.flush()
+        await self.db.refresh(slide)
+
+        # Best-effort cleanup of the old remote file, after the swap succeeds.
+        await ik_delete_image(old_file_id)
+        return slide
+
     async def delete(self, slide_id: UUID) -> None:
         slide = await self._get(slide_id)
         await ik_delete_image(slide.file_id)

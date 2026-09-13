@@ -548,6 +548,19 @@ async def reorder_auth_slides(
     return await service.reorder(data.slide_ids)
 
 
+@router.post("/auth-slides/{slide_id}/image", response_model=AuthSlideAdminResponse)
+async def replace_auth_slide_image(
+    slide_id: UUID,
+    file: UploadFile = File(...),
+    _: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Replace a slide's image in place, keeping its quote/cite/order/active
+    state. The old ImageKit file is deleted after the new one is uploaded."""
+    service = AuthSlideService(db)
+    return await service.replace_image(slide_id, file)
+
+
 @router.patch("/auth-slides/{slide_id}", response_model=AuthSlideAdminResponse)
 async def update_auth_slide(
     slide_id: UUID,

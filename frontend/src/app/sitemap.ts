@@ -18,6 +18,12 @@ interface SitemapBlogPost {
   published_at?: string;
 }
 
+interface SitemapCategory {
+  id: string;
+  name: string;
+  updated_at?: string;
+}
+
 async function getProductEntries(): Promise<MetadataRoute.Sitemap> {
   try {
     const entries: MetadataRoute.Sitemap = [];
@@ -87,6 +93,33 @@ async function getBlogEntries(): Promise<MetadataRoute.Sitemap> {
   }
 }
 
+async function getCategoryEntries(): Promise<MetadataRoute.Sitemap> {
+  try {
+    // /categories returns a plain array (no pagination wrapper), unlike
+    // /products and /blog above.
+    const url = `${API_BASE_URL}categories`;
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) {
+      console.error(`[sitemap] categories fetch failed: ${res.status} ${res.statusText} — ${url}`);
+      return [];
+    }
+    const data = (await res.json()) as SitemapCategory[];
+    const entries: MetadataRoute.Sitemap = (data ?? []).map((c) => ({
+      // Matches the links the category tiles/menu actually use — see
+      // src/components/Category.tsx — so these stay in sync with real nav.
+      url: `${SITE_URL}/products?category_id=${c.id}&category=${encodeURIComponent(c.name)}`,
+      lastModified: c.updated_at ? new Date(c.updated_at) : undefined,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
+    console.log(`[sitemap] categories: ${entries.length} entries`);
+    return entries;
+  } catch (err) {
+    console.error("[sitemap] categories fetch threw:", err);
+    return [];
+  }
+}
+
 async function getAboutLastModified(): Promise<Date | undefined> {
   try {
     const url = `${API_BASE_URL}about`;
@@ -118,6 +151,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     {
+      // Shop page — now linked from the header's "Shop" menu.
+      url: `${SITE_URL}/products`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
       url: `${SITE_URL}/become-partner`,
       lastModified: new Date(),
       changeFrequency: "monthly",
@@ -131,7 +171,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const [productEntries, blogEntries] = await Promise.all([getProductEntries(), getBlogEntries()]);
+  const [productEntries, blogEntries, categoryEntries] = await Promise.all([
+    getProductEntries(),
+    getBlogEntries(),
+    getCategoryEntries(),
+  ]);
 
-  return [...staticEntries, ...productEntries, ...blogEntries];
+  return [...staticEntries, ...categoryEntries, ...productEntries, ...blogEntries];
 }

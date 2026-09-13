@@ -11,9 +11,16 @@ import { Truck, ShieldCheck, Leaf, Star, ShoppingBag, Award, Zap, Heart } from "
 import ProductCard, { type ProductWithVariant } from "@/components/ProductCard";
 import CategoryScroller from "@/components/Category";
 import * as productService from "@/services/productService";
+import { getAuthSlides } from "@/services/authSlideService";
+import { assetUrl } from "@/config/env";
 import { useCart } from "@/contexts/CartContext";
 import { getCached, setCached } from "@/utils/dataCache";
 import type { Product } from "@/types";
+
+// Falls back to the local banner until the admin's default auth-slide image
+// (see src/app/admin/auth-slides) loads, or if they haven't added one yet —
+// same fallback the login/register carousel uses (src/components/AuthLayout.tsx).
+const DEFAULT_HERO_IMAGE = "/cashews-banner.png";
 
 const PRODUCTS_CACHE_KEY = "cache:home-products";
 
@@ -45,11 +52,42 @@ function HomeContent() {
   const querySearch = searchParams.get("q") || "";
 
   const { cartItems, addToCart, increment, decrement } = useCart();
-  const [products, setProducts] = useState<Product[]>(() => getCached<Product[]>(PRODUCTS_CACHE_KEY) ?? []);
+  // NOTE: these used to be seeded straight from getCached() inside the
+  // useState initializer. getCached() returns undefined during SSR (no
+  // sessionStorage on the server) but can return real cached data on the
+  // client's very first render if this tab has visited before — so the
+  // server painted the loading skeleton while the client's first paint
+  // wanted the real grid. That mismatch made React discard and regenerate
+  // this whole subtree client-side (a hydration error), which is what
+  // made the page look right for a moment and then jump/break shortly
+  // after. Cache is now only applied inside the effect below (after
+  // mount), so server and client agree on the first paint.
+  const [products, setProducts] = useState<Product[]>([]);
   // Only show the loading skeleton when there's nothing cached to show yet
   // (first-ever visit). Every visit after that renders the last-known
   // products immediately while loadProducts refreshes them quietly below.
-  const [loading, setLoading] = useState(() => getCached<Product[]>(PRODUCTS_CACHE_KEY) === undefined);
+  const [loading, setLoading] = useState(true);
+
+  // Hero banner mirrors whatever the admin has set as the default (first,
+  // active) auth-page slide — one image, admin-managed in one place,
+  // instead of a separate hardcoded banner here.
+  const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAuthSlides()
+      .then((slides) => {
+        if (cancelled || slides.length === 0) return;
+        const url = assetUrl(slides[0].url);
+        if (url) setHeroImage(url);
+      })
+      .catch(() => {
+        // Keep the local banner — a failed fetch here shouldn't break the homepage.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loadProducts = useCallback(async () => {
     try {
@@ -65,6 +103,13 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
+    // Applied after mount (not during initial render) so it can never
+    // disagree with the server-rendered HTML — see the note above.
+    const cached = getCached<Product[]>(PRODUCTS_CACHE_KEY);
+    if (cached) {
+      setProducts(cached);
+      setLoading(false);
+    }
     loadProducts();
   }, [loadProducts]);
 
@@ -109,7 +154,7 @@ function HomeContent() {
       <section className="relative min-h-[90vh] flex flex-col justify-end overflow-hidden bg-brand-black">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/cashews-banner.png"
+          src={heroImage}
           alt=""
           aria-hidden
           className="absolute inset-0 w-full h-full object-cover opacity-40"
@@ -221,7 +266,7 @@ function HomeContent() {
             variants={stagger}
             initial="hidden"
             animate="show"
-            className="grid py-10 px-4 sm:px-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            className="grid py-10 px-8 sm:px-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
           >
             {filteredProducts.map((p) => (
               <motion.div key={p.id} variants={cardAnim}>

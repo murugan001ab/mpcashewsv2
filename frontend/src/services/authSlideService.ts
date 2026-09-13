@@ -25,6 +25,13 @@ export const createAuthSlide = (file: File, quote: string, cite?: string): Promi
 export const updateAuthSlide = (slideId: string, data: AuthSlideUpdatePayload): Promise<AuthSlideAdmin> =>
   patch<AuthSlideAdmin>(`/admin/auth-slides/${slideId}`, data);
 
+// Swaps the image in place (same slide id, quote, cite, order, active state).
+export const replaceAuthSlideImage = (slideId: string, file: File): Promise<AuthSlideAdmin> => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return postForm<AuthSlideAdmin>(`/admin/auth-slides/${slideId}/image`, formData);
+};
+
 export const deleteAuthSlide = (slideId: string): Promise<void> => del<void>(`/admin/auth-slides/${slideId}`);
 
 // Full ordered list of slide IDs; sort_order is rewritten to match.

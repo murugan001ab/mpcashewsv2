@@ -1,17 +1,32 @@
 "use client";
+
 // src/app/checkout/page.tsx
-// Address selection + Razorpay payment. Creates an order from whatever is in
-// the user's server-side cart (backend /orders creates from-cart, there's no
-// per-item "buy now" order type), then opens Razorpay checkout for it.
+// Address selection + Razorpay payment.
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Loader2, CheckCircle2, Package, ArrowLeft, ShieldCheck, Tag, X, Plus, AlertCircle } from "lucide-react";
+import {
+  MapPin,
+  Loader2,
+  CheckCircle2,
+  Package,
+  ArrowLeft,
+  ShieldCheck,
+  Tag,
+  X,
+  Plus,
+  AlertCircle,
+} from "lucide-react";
+
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import * as addressService from "@/services/addressService";
 import type { Address } from "@/services/addressService";
-import AddressForm, { EMPTY_ADDRESS_FORM, type AddressFormState } from "@/components/AddressForm";
+import AddressForm, {
+  EMPTY_ADDRESS_FORM,
+  type AddressFormState,
+} from "@/components/AddressForm";
 import * as orderService from "@/services/orderService";
 import * as paymentService from "@/services/paymentService";
 import * as couponService from "@/services/couponService";
@@ -25,17 +40,21 @@ interface RazorpayInstance {
 
 declare global {
   interface Window {
-    Razorpay: new (options: Record<string, unknown>) => RazorpayInstance;
+    Razorpay: new (
+      options: Record<string, unknown>
+    ) => RazorpayInstance;
   }
 }
 
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (window.Razorpay) return resolve(true);
+
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
+
     document.body.appendChild(script);
   });
 }
@@ -47,30 +66,27 @@ function CheckoutContent() {
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedId, setSelectedId] = useState<string | number | null>(null);
+
   const [loadingAddresses, setLoadingAddresses] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const rzpRef = useRef<RazorpayInstance | null>(null);
 
-  // "+ Add New Address" inline modal — reuses the same AddressForm as the
-  // profile page instead of redirecting away from checkout.
-  const [addressForm, setAddressForm] = useState<AddressFormState | null>(null);
+  const [addressForm, setAddressForm] =
+    useState<AddressFormState | null>(null);
+
   const [savingAddress, setSavingAddress] = useState(false);
 
-  // Coupon (optional) — applying it here only previews the discount against
-  // the cart subtotal; it's actually consumed once the order is placed with
-  // this same code (see orderService.createOrder's coupon_code field).
   const [couponInput, setCouponInput] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount: number;
+  } | null>(null);
+
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
 
-  // If the user navigates away (or the component unmounts) while a Razorpay
-  // instance is still open, its checkout.js keeps polling api.razorpay.com
-  // in the background (UPI/QR status checks) since that script attaches
-  // itself directly to document.body — an SPA route change doesn't tear it
-  // down. Explicitly closing it here is what actually stops those requests;
-  // without this they only stop on a full page refresh.
   useEffect(() => {
     return () => {
       rzpRef.current?.close();
@@ -80,17 +96,25 @@ function CheckoutContent() {
 
   useEffect(() => {
     loadAddresses();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAddresses = () => {
     setLoadingAddresses(true);
+
     return addressService
       .getAddresses()
       .then((list) => {
         setAddresses(list);
-        const def = list.find((a) => a.is_default) ?? list[0];
-        if (def) setSelectedId((prev) => prev ?? def.id);
+
+        const def =
+          list.find((a) => a.is_default) ?? list[0];
+
+        if (def) {
+          setSelectedId((prev) => prev ?? def.id);
+        }
+
         return list;
       })
       .catch((e) => {
@@ -100,15 +124,29 @@ function CheckoutContent() {
       .finally(() => setLoadingAddresses(false));
   };
 
-  const handleSaveNewAddress = async (e: React.FormEvent) => {
+  const handleSaveNewAddress = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
+
     if (!addressForm) return;
+
     setSavingAddress(true);
+
     try {
-      const created = await addressService.addAddress(addressForm as Omit<Address, "id">);
+      const created = await addressService.addAddress(
+        addressForm as Omit<Address, "id">
+      );
+
       setAddressForm(null);
+
       const list = await loadAddresses();
-      setSelectedId(created.id ?? list.find((a) => a.is_default)?.id ?? null);
+
+      setSelectedId(
+        created.id ??
+          list.find((a) => a.is_default)?.id ??
+          null
+      );
     } catch (e) {
       console.error(e);
       alert("Failed to save address.");
@@ -117,20 +155,44 @@ function CheckoutContent() {
     }
   };
 
-  const { subtotal, tax, shipping, total: totalBeforeDiscount } = totals;
+  const {
+    subtotal,
+    tax,
+    shipping,
+    total: totalBeforeDiscount,
+  } = totals;
+
   const discount = appliedCoupon?.discount ?? 0;
-  const total = Math.max(totalBeforeDiscount - discount, 0);
+
+  const total = Math.max(
+    totalBeforeDiscount - discount,
+    0
+  );
 
   const handleApplyCoupon = async () => {
     if (!couponInput.trim() || applyingCoupon) return;
+
     setApplyingCoupon(true);
     setCouponError(null);
+
     try {
-      const res = await couponService.applyCoupon(couponInput.trim());
-      setAppliedCoupon({ code: res.code, discount: parseFloat(res.discount_amount) });
+      const res = await couponService.applyCoupon(
+        couponInput.trim()
+      );
+
+      setAppliedCoupon({
+        code: res.code,
+        discount: parseFloat(res.discount_amount),
+      });
     } catch (e) {
       setAppliedCoupon(null);
-      setCouponError(getErrorMessage(e, "That coupon couldn't be applied."));
+
+      setCouponError(
+        getErrorMessage(
+          e,
+          "That coupon couldn't be applied."
+        )
+      );
     } finally {
       setApplyingCoupon(false);
     }
@@ -143,32 +205,39 @@ function CheckoutContent() {
   };
 
   const handlePlaceOrder = async () => {
-    if (placing) return; // guard against double-click opening two checkout instances
+    if (placing) return;
+
     if (!selectedId) {
       setError("Please select a delivery address.");
       return;
     }
+
     setError(null);
     setPlacing(true);
+
     try {
-      // 1. Create the order from the current cart.
       const order = await orderService.createOrder({
         address_id: selectedId,
         coupon_code: appliedCoupon?.code,
       });
 
-      // 2. Create a Razorpay payment order for it.
-      const payment = await paymentService.createPaymentOrder(order.id);
+      const payment =
+        await paymentService.createPaymentOrder(order.id);
 
-      // 3. Load the Razorpay checkout script and open the modal.
       const ok = await loadRazorpayScript();
+
       if (!ok) {
-        setError("Couldn't load the payment gateway. Please check your connection and try again.");
+        setError(
+          "Couldn't load the payment gateway. Please check your connection and try again."
+        );
+
         setPlacing(false);
         return;
       }
 
-      const selectedAddress = addresses.find((a) => a.id === selectedId);
+      const selectedAddress = addresses.find(
+        (a) => a.id === selectedId
+      );
 
       const rzp = new window.Razorpay({
         key: RAZORPAY_KEY_ID,
@@ -177,31 +246,53 @@ function CheckoutContent() {
         order_id: payment.razorpay_order_id,
         name: "MP Cashews",
         description: `Order ${order.order_number}`,
+
         prefill: {
-          name: selectedAddress?.name || user?.full_name || "",
+          name:
+            selectedAddress?.name ||
+            user?.full_name ||
+            "",
+
           email: user?.email || "",
-          contact: selectedAddress?.phone_number || "",
+
+          contact:
+            selectedAddress?.phone_number || "",
         },
-        theme: { color: "#E8820C" },
+
+        theme: {
+          color: "#E8820C",
+        },
+
         handler: async (response: {
           razorpay_order_id: string;
           razorpay_payment_id: string;
           razorpay_signature: string;
         }) => {
           try {
-            await paymentService.verifyPayment(response);
+            await paymentService.verifyPayment(
+              response
+            );
+
             rzp.close();
             rzpRef.current = null;
+
             await clearCart();
-            router.push(`/profile?tab=orders`);
+
+            router.push("/profile?tab=orders");
           } catch (e) {
             console.error(e);
+
             rzp.close();
             rzpRef.current = null;
-            setError("Payment verification failed. If money was deducted, it will be refunded shortly.");
+
+            setError(
+              "Payment verification failed. If money was deducted, it will be refunded shortly."
+            );
+
             setPlacing(false);
           }
         },
+
         modal: {
           ondismiss: () => {
             rzpRef.current = null;
@@ -209,28 +300,45 @@ function CheckoutContent() {
           },
         },
       });
+
       rzpRef.current = rzp;
       rzp.open();
     } catch (e) {
       console.error(e);
-      setError("Couldn't place your order. Please try again.");
+
+      setError(
+        "Couldn't place your order. Please try again."
+      );
+
       setPlacing(false);
     }
   };
 
+  /* -------------------------------------------------------
+     EMPTY CART
+  ------------------------------------------------------- */
+
   if (!cart.length) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[65vh] px-4 pt-16">
-        <div className="w-24 h-24 bg-brand-orange/10 text-brand-orange rounded-full flex items-center justify-center mb-6 shadow-sm">
-          <Package size={40} strokeWidth={2} />
+      <div className="flex min-h-[65vh] flex-col items-center justify-center px-5 pt-20 text-center">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-brand-orange/10 text-brand-orange shadow-sm sm:h-24 sm:w-24">
+          <Package
+            size={34}
+            strokeWidth={2}
+          />
         </div>
-        <h2 className="text-3xl font-extrabold text-brand-black mb-3 tracking-tight">Your cart is empty</h2>
-        <p className="text-brand-brown/60 mb-8 text-center max-w-md">
+
+        <h2 className="mb-3 text-2xl font-extrabold tracking-tight text-brand-black sm:text-3xl">
+          Your cart is empty
+        </h2>
+
+        <p className="mb-7 max-w-md text-sm leading-relaxed text-brand-brown/60 sm:text-base">
           Add something to your cart before checking out.
         </p>
+
         <button
           onClick={() => router.push("/")}
-          className="bg-brand-orange hover:bg-brand-brown text-white px-8 py-3.5 rounded-xl font-bold transition-all duration-300 shadow-md"
+          className="rounded-xl bg-brand-orange px-7 py-3.5 text-sm font-bold text-white shadow-md transition-all duration-300 hover:bg-brand-brown sm:px-8"
         >
           Continue Shopping
         </button>
@@ -239,296 +347,1119 @@ function CheckoutContent() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-8 pt-28 md:pt-32 pb-28 lg:pb-16 min-h-screen">
-      <button
-        onClick={() => router.push("/cart")}
-        className="flex items-center gap-1.5 text-sm font-bold text-brand-brown/60 hover:text-brand-orange transition-colors mb-8 w-fit"
-      >
-        <ArrowLeft size={16} strokeWidth={2.5} /> Back to Cart
-      </button>
+    <div
+      className="
+        min-h-screen
+        w-full
+        px-4
+        pt-24
+        pb-[125px]
+        sm:px-5
+        sm:pt-28
+        sm:pb-[130px]
+        md:px-6
+        md:pt-32
+        lg:px-8
+        lg:pb-16
+      "
+    >
+      <div className="mx-auto w-full max-w-6xl">
 
-      <h1 className="text-3xl md:text-4xl font-extrabold text-brand-black tracking-tight mb-8">Checkout</h1>
+        {/* -------------------------------------------------------
+            BACK TO CART
+        ------------------------------------------------------- */}
 
-      <div className="flex flex-col lg:flex-row lg:items-start gap-10 lg:gap-14">
-        {/* ── Address + Items ──────────────────────────────────────────── */}
-        <div className="lg:w-2/3 flex flex-col gap-8">
-          <div>
-            <h2 className="text-lg font-extrabold text-brand-black mb-4 flex items-center gap-2">
-              <MapPin size={18} className="text-brand-orange" /> Delivery Address
-            </h2>
+        <button
+          onClick={() => router.push("/cart")}
+          className="
+            mb-5
+            flex
+            min-h-10
+            items-center
+            gap-1.5
+            rounded-lg
+            text-xs
+            font-bold
+            text-brand-brown/60
+            transition-colors
+            hover:text-brand-orange
+            sm:mb-7
+            sm:text-sm
+          "
+        >
+          <ArrowLeft
+            size={16}
+            strokeWidth={2.5}
+          />
 
-            {loadingAddresses ? (
-              <div className="flex items-center gap-2 text-brand-brown/50 py-8">
-                <Loader2 className="animate-spin" size={20} /> Loading addresses…
-              </div>
-            ) : addresses.length === 0 ? (
-              <div className="bg-gray-50 border border-dashed border-brand-brown/20 rounded-2xl p-6 text-center">
-                <p className="text-brand-brown/70 font-medium mb-4">You don't have a saved address yet.</p>
-                <button
-                  onClick={() => setAddressForm({ ...EMPTY_ADDRESS_FORM })}
-                  className="bg-brand-orange hover:bg-brand-brown text-white px-6 py-3 rounded-xl font-bold transition-all"
-                >
-                  📍 Add Delivery Address
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {addresses.map((addr) => {
-                  const isSelected = selectedId === addr.id;
-                  return (
-                    <button
-                      key={addr.id}
-                      onClick={() => setSelectedId(addr.id)}
-                      className={`text-left relative bg-white border p-5 rounded-2xl transition-all duration-200 ${
-                        isSelected
-                          ? "border-brand-orange ring-2 ring-brand-orange/20 shadow-sm"
-                          : "border-brand-brown/10 hover:border-brand-brown/30"
-                      }`}
-                    >
-                      {isSelected && (
-                        <CheckCircle2 size={20} className="absolute top-4 right-4 text-brand-orange" fill="currentColor" strokeWidth={0} />
-                      )}
-                      <p className="font-bold text-brand-black text-sm mb-1 pr-6 flex items-center gap-2">
-                        {addr.name}
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-brand-brown/40 bg-brand-brown/5 px-1.5 py-0.5 rounded-full">
-                          {addr.address_type}
-                        </span>
-                      </p>
-                      <p className="text-sm text-brand-brown/70 leading-relaxed pr-6">
-                        {addr.house_flat}
-                        {addr.street_area ? `, ${addr.street_area}` : ""}
-                        <br />
-                        {addr.city}, {addr.state} - {addr.pincode}
-                      </p>
-                      <p className="text-xs font-semibold text-brand-brown/50 mt-2">{addr.phone_number}</p>
-                    </button>
-                  );
-                })}
+          <span>Back to Cart</span>
+        </button>
 
-                <button
-                  onClick={() => setAddressForm({ ...EMPTY_ADDRESS_FORM })}
-                  className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-brand-brown/20 hover:border-brand-orange/50 hover:text-brand-orange text-brand-brown/50 rounded-2xl p-5 transition-colors min-h-[110px]"
-                >
-                  <Plus size={20} strokeWidth={2.5} />
-                  <span className="text-sm font-bold">Add New Address</span>
-                </button>
-              </div>
-            )}
-          </div>
+        {/* -------------------------------------------------------
+            PAGE TITLE
+        ------------------------------------------------------- */}
 
-          <div>
-            <h2 className="text-lg font-extrabold text-brand-black mb-4">Order Items</h2>
-            <div className="flex flex-col divide-y divide-brand-brown/5 border border-brand-brown/10 rounded-2xl overflow-hidden bg-white">
-              {cart.map((item) => {
-                const p = item.product;
-                const imgSrc = p?.images?.find((img) => img.is_primary)?.url ?? p?.images?.[0]?.url ?? null;
-                const itemPrice = parseFloat(String(item.price_at_add ?? 0));
-                return (
-                  <div key={item.id} className="flex items-center gap-4 p-4">
-                    <div className="w-16 h-16 bg-brand-cream/30 rounded-xl overflow-hidden flex-shrink-0 border border-brand-brown/10">
-                      {imgSrc ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={imgSrc} alt={p?.name ?? "product"} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-brand-brown/30">
-                          <Package size={18} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-brand-black truncate">{p?.name}</p>
-                      <p className="text-xs text-brand-brown/50">Qty {item.quantity}</p>
-                    </div>
-                    <p className="font-extrabold text-sm text-brand-black">₹{(itemPrice * item.quantity).toFixed(0)}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        <div className="mb-6 sm:mb-8">
+          <h1
+            className="
+              text-3xl
+              font-extrabold
+              tracking-tight
+              text-brand-black
+              sm:text-4xl
+            "
+          >
+            Checkout
+          </h1>
+
+          <p className="mt-1.5 text-sm text-brand-brown/50 sm:hidden">
+            Review your address and order before payment.
+          </p>
         </div>
 
-        {/* ── Order Summary ────────────────────────────────────────────── */}
-        <div className="lg:w-1/3">
-          <div className="bg-brand-cream/20 border border-brand-brown/10 rounded-3xl p-6 md:p-8 sticky top-28 shadow-sm">
-            <h2 className="text-xl font-extrabold text-brand-black mb-6">Order Summary</h2>
+        {/* -------------------------------------------------------
+            MAIN GRID
+        ------------------------------------------------------- */}
 
-            {/* Coupon */}
-            <div className="mb-6">
-              {appliedCoupon ? (
-                <div className="flex items-center justify-between gap-2 bg-brand-green/10 border border-brand-green/20 rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm font-bold text-brand-green">
-                    <Tag size={15} />
-                    {appliedCoupon.code} applied
-                  </div>
+        <div
+          className="
+            flex
+            flex-col
+            gap-7
+            lg:flex-row
+            lg:items-start
+            lg:gap-12
+            xl:gap-14
+          "
+        >
+
+          {/* =====================================================
+              LEFT SIDE
+          ===================================================== */}
+
+          <div className="flex w-full flex-col gap-7 lg:w-2/3 lg:gap-8">
+
+            {/* ---------------------------------------------------
+                DELIVERY ADDRESS
+            --------------------------------------------------- */}
+
+            <section>
+              <h2
+                className="
+                  mb-3
+                  flex
+                  items-center
+                  gap-2
+                  text-base
+                  font-extrabold
+                  text-brand-black
+                  sm:mb-4
+                  sm:text-lg
+                "
+              >
+                <MapPin
+                  size={18}
+                  className="shrink-0 text-brand-orange"
+                />
+
+                Delivery Address
+              </h2>
+
+              {loadingAddresses ? (
+                <div
+                  className="
+                    flex
+                    min-h-24
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-2xl
+                    border
+                    border-brand-brown/10
+                    bg-white
+                    text-sm
+                    text-brand-brown/50
+                  "
+                >
+                  <Loader2
+                    className="animate-spin"
+                    size={20}
+                  />
+
+                  Loading addresses…
+                </div>
+              ) : addresses.length === 0 ? (
+                <div
+                  className="
+                    rounded-2xl
+                    border
+                    border-dashed
+                    border-brand-brown/20
+                    bg-gray-50
+                    p-5
+                    text-center
+                    sm:p-6
+                  "
+                >
+                  <p className="mb-4 text-sm font-medium leading-relaxed text-brand-brown/70">
+                    You don't have a saved address yet.
+                  </p>
+
                   <button
-                    onClick={handleRemoveCoupon}
-                    className="text-brand-brown/50 hover:text-red-600 transition-colors"
-                    title="Remove coupon"
+                    onClick={() =>
+                      setAddressForm({
+                        ...EMPTY_ADDRESS_FORM,
+                      })
+                    }
+                    className="
+                      inline-flex
+                      min-h-11
+                      items-center
+                      justify-center
+                      rounded-xl
+                      bg-brand-orange
+                      px-5
+                      py-3
+                      text-sm
+                      font-bold
+                      text-white
+                      transition-all
+                      hover:bg-brand-brown
+                    "
                   >
-                    <X size={16} />
+                    <MapPin
+                      size={16}
+                      className="mr-1.5"
+                    />
+
+                    Add Delivery Address
                   </button>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleApplyCoupon();
-                    }}
-                    className="flex gap-2"
+                <div
+                  className="
+                    grid
+                    grid-cols-1
+                    gap-3
+                    sm:grid-cols-2
+                    sm:gap-4
+                  "
+                >
+                  {addresses.map((addr) => {
+                    const isSelected =
+                      selectedId === addr.id;
+
+                    return (
+                      <button
+                        key={addr.id}
+                        onClick={() =>
+                          setSelectedId(addr.id)
+                        }
+                        className={`
+                          relative
+                          w-full
+                          rounded-2xl
+                          border
+                          p-4
+                          text-left
+                          transition-all
+                          duration-200
+                          sm:p-5
+                          ${
+                            isSelected
+                              ? "border-brand-orange bg-brand-orange/[0.025] ring-2 ring-brand-orange/20 shadow-sm"
+                              : "border-brand-brown/10 bg-white hover:border-brand-brown/30"
+                          }
+                        `}
+                      >
+                        {isSelected && (
+                          <CheckCircle2
+                            size={20}
+                            className="
+                              absolute
+                              right-3
+                              top-3
+                              text-brand-orange
+                              sm:right-4
+                              sm:top-4
+                            "
+                            fill="currentColor"
+                            strokeWidth={0}
+                          />
+                        )}
+
+                        <div className="pr-7">
+                          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                            <p className="text-sm font-bold text-brand-black">
+                              {addr.name}
+                            </p>
+
+                            <span
+                              className="
+                                rounded-full
+                                bg-brand-brown/5
+                                px-1.5
+                                py-0.5
+                                text-[8px]
+                                font-bold
+                                uppercase
+                                tracking-wider
+                                text-brand-brown/40
+                              "
+                            >
+                              {addr.address_type}
+                            </span>
+                          </div>
+
+                          <p
+                            className="
+                              text-xs
+                              leading-5
+                              text-brand-brown/70
+                              sm:text-sm
+                              sm:leading-relaxed
+                            "
+                          >
+                            {addr.house_flat}
+
+                            {addr.street_area
+                              ? `, ${addr.street_area}`
+                              : ""}
+
+                            <br />
+
+                            {addr.city}, {addr.state} -{" "}
+                            {addr.pincode}
+                          </p>
+
+                          <p className="mt-2 text-[11px] font-semibold text-brand-brown/50 sm:text-xs">
+                            {addr.phone_number}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {/* ADD NEW ADDRESS */}
+
+                  <button
+                    onClick={() =>
+                      setAddressForm({
+                        ...EMPTY_ADDRESS_FORM,
+                      })
+                    }
+                    className="
+                      flex
+                      min-h-[105px]
+                      w-full
+                      flex-col
+                      items-center
+                      justify-center
+                      gap-1.5
+                      rounded-2xl
+                      border-2
+                      border-dashed
+                      border-brand-brown/20
+                      p-5
+                      text-brand-brown/50
+                      transition-colors
+                      hover:border-brand-orange/50
+                      hover:text-brand-orange
+                    "
                   >
-                    <input
-                      value={couponInput}
-                      onChange={(e) => {
-                        setCouponInput(e.target.value.toUpperCase());
-                        if (couponError) setCouponError(null);
-                      }}
-                      placeholder="Coupon code"
-                      disabled={applyingCoupon}
-                      className={`flex-1 px-3.5 py-2.5 rounded-xl border bg-white text-sm font-semibold text-brand-black placeholder:text-brand-brown/35 placeholder:font-medium focus:outline-none focus:ring-2 transition uppercase disabled:opacity-60 ${
-                        couponError
-                          ? "border-red-300 focus:ring-red-200 focus:border-red-300"
-                          : "border-brand-brown/15 focus:ring-brand-orange/40 focus:border-brand-orange/40"
-                      }`}
+                    <Plus
+                      size={20}
+                      strokeWidth={2.5}
                     />
-                    <button
-                      type="submit"
-                      disabled={applyingCoupon || !couponInput.trim()}
-                      className="px-4 py-2.5 rounded-xl bg-brand-black hover:bg-brand-brown text-white text-sm font-bold transition-colors disabled:opacity-50"
-                    >
-                      {applyingCoupon ? <Loader2 size={16} className="animate-spin" /> : "Apply"}
-                    </button>
-                  </form>
-                  {couponError && (
-                    <p className="flex items-start gap-2 text-red-600 text-xs font-semibold bg-red-50 border border-red-100 rounded-lg px-3 py-2.5">
-                      <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                      {couponError}
-                    </p>
-                  )}
+
+                    <span className="text-sm font-bold">
+                      Add New Address
+                    </span>
+                  </button>
                 </div>
               )}
-            </div>
+            </section>
 
-            <div className="flex flex-col gap-4 text-sm font-medium text-brand-brown/80 mb-6">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span className="font-bold text-brand-black">₹{subtotal.toFixed(0)}</span>
+            {/* ---------------------------------------------------
+                ORDER ITEMS
+            --------------------------------------------------- */}
+
+            <section>
+              <h2
+                className="
+                  mb-3
+                  text-base
+                  font-extrabold
+                  text-brand-black
+                  sm:mb-4
+                  sm:text-lg
+                "
+              >
+                Order Items
+              </h2>
+
+              <div
+                className="
+                  overflow-hidden
+                  rounded-2xl
+                  border
+                  border-brand-brown/10
+                  bg-white
+                "
+              >
+                {cart.map((item) => {
+                  const p = item.product;
+
+                  const imgSrc =
+                    p?.images?.find(
+                      (img) => img.is_primary
+                    )?.url ??
+                    p?.images?.[0]?.url ??
+                    null;
+
+                  const itemPrice = parseFloat(
+                    String(item.price_at_add ?? 0)
+                  );
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="
+                        flex
+                        min-w-0
+                        items-center
+                        gap-3
+                        border-b
+                        border-brand-brown/5
+                        p-3.5
+                        last:border-b-0
+                        sm:gap-4
+                        sm:p-4
+                      "
+                    >
+                      {/* PRODUCT IMAGE */}
+
+                      <div
+                        className="
+                          h-14
+                          w-14
+                          shrink-0
+                          overflow-hidden
+                          rounded-xl
+                          border
+                          border-brand-brown/10
+                          bg-brand-cream/30
+                          sm:h-16
+                          sm:w-16
+                        "
+                      >
+                        {imgSrc ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={imgSrc}
+                            alt={
+                              p?.name ??
+                              "product"
+                            }
+                            className="
+                              h-full
+                              w-full
+                              object-cover
+                            "
+                          />
+                        ) : (
+                          <div
+                            className="
+                              flex
+                              h-full
+                              w-full
+                              items-center
+                              justify-center
+                              text-brand-brown/30
+                            "
+                          >
+                            <Package size={18} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* PRODUCT INFO */}
+
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="
+                            truncate
+                            text-xs
+                            font-bold
+                            text-brand-black
+                            sm:text-sm
+                          "
+                        >
+                          {p?.name}
+                        </p>
+
+                        <p className="mt-0.5 text-[11px] text-brand-brown/50 sm:text-xs">
+                          Qty {item.quantity}
+                        </p>
+                      </div>
+
+                      {/* PRICE */}
+
+                      <p
+                        className="
+                          shrink-0
+                          text-xs
+                          font-extrabold
+                          text-brand-black
+                          sm:text-sm
+                        "
+                      >
+                        ₹
+                        {(
+                          itemPrice *
+                          item.quantity
+                        ).toFixed(0)}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex justify-between">
-                <span>Tax (GST 18%)</span>
-                <span className="font-bold text-brand-black">₹{tax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span>Shipping estimate</span>
-                {shipping === 0 ? (
-                  <span className="text-brand-green font-bold bg-brand-green/10 px-2 py-1 rounded-md text-[10px] uppercase tracking-widest border border-brand-green/20">
-                    Free
-                  </span>
+            </section>
+          </div>
+
+          {/* =====================================================
+              ORDER SUMMARY
+          ===================================================== */}
+
+          <div className="w-full lg:w-1/3">
+            <div
+              className="
+                rounded-2xl
+                border
+                border-brand-brown/10
+                bg-brand-cream/20
+                p-4
+                shadow-sm
+                sm:rounded-3xl
+                sm:p-6
+                md:p-7
+                lg:sticky
+                lg:top-28
+              "
+            >
+              <h2
+                className="
+                  mb-5
+                  text-lg
+                  font-extrabold
+                  text-brand-black
+                  sm:text-xl
+                "
+              >
+                Order Summary
+              </h2>
+
+              {/* -------------------------------------------------
+                  COUPON
+              ------------------------------------------------- */}
+
+              <div className="mb-5 sm:mb-6">
+                {appliedCoupon ? (
+                  <div
+                    className="
+                      flex
+                      min-h-11
+                      items-center
+                      justify-between
+                      gap-2
+                      rounded-xl
+                      border
+                      border-brand-green/20
+                      bg-brand-green/10
+                      px-3.5
+                      py-2.5
+                    "
+                  >
+                    <div className="flex min-w-0 items-center gap-2 text-xs font-bold text-brand-green sm:text-sm">
+                      <Tag
+                        size={15}
+                        className="shrink-0"
+                      />
+
+                      <span className="truncate">
+                        {appliedCoupon.code} applied
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={handleRemoveCoupon}
+                      className="
+                        flex
+                        h-8
+                        w-8
+                        shrink-0
+                        items-center
+                        justify-center
+                        rounded-lg
+                        text-brand-brown/50
+                        transition-colors
+                        hover:bg-white/60
+                        hover:text-red-600
+                      "
+                      title="Remove coupon"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
                 ) : (
-                  <span className="font-bold text-brand-black">₹{shipping}</span>
+                  <div className="flex flex-col gap-2">
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleApplyCoupon();
+                      }}
+                      className="
+                        flex
+                        w-full
+                        gap-2
+                      "
+                    >
+                      <input
+                        value={couponInput}
+                        onChange={(e) => {
+                          setCouponInput(
+                            e.target.value.toUpperCase()
+                          );
+
+                          if (couponError) {
+                            setCouponError(null);
+                          }
+                        }}
+                        placeholder="Coupon code"
+                        disabled={applyingCoupon}
+                        className={`
+                          min-w-0
+                          flex-1
+                          rounded-xl
+                          border
+                          bg-white
+                          px-3
+                          py-3
+                          text-xs
+                          font-semibold
+                          text-brand-black
+                          placeholder:font-medium
+                          placeholder:text-brand-brown/35
+                          focus:outline-none
+                          focus:ring-2
+                          disabled:opacity-60
+                          sm:px-3.5
+                          sm:text-sm
+                          ${
+                            couponError
+                              ? "border-red-300 focus:border-red-300 focus:ring-red-200"
+                              : "border-brand-brown/15 focus:border-brand-orange/40 focus:ring-brand-orange/20"
+                          }
+                        `}
+                      />
+
+                      <button
+                        type="submit"
+                        disabled={
+                          applyingCoupon ||
+                          !couponInput.trim()
+                        }
+                        className="
+                          flex
+                          min-w-[72px]
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-xl
+                          bg-brand-black
+                          px-3
+                          py-3
+                          text-xs
+                          font-bold
+                          text-white
+                          transition-colors
+                          hover:bg-brand-brown
+                          disabled:opacity-50
+                          sm:min-w-[80px]
+                          sm:px-4
+                          sm:text-sm
+                        "
+                      >
+                        {applyingCoupon ? (
+                          <Loader2
+                            size={16}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          "Apply"
+                        )}
+                      </button>
+                    </form>
+
+                    {couponError && (
+                      <p
+                        className="
+                          flex
+                          items-start
+                          gap-2
+                          rounded-lg
+                          border
+                          border-red-100
+                          bg-red-50
+                          px-3
+                          py-2.5
+                          text-[11px]
+                          font-semibold
+                          leading-4
+                          text-red-600
+                        "
+                      >
+                        <AlertCircle
+                          size={14}
+                          className="mt-0.5 shrink-0"
+                        />
+
+                        <span>{couponError}</span>
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
-              {discount > 0 && (
-                <div className="flex justify-between">
-                  <span>Coupon discount</span>
-                  <span className="font-bold text-brand-green">-₹{discount.toFixed(0)}</span>
+
+              {/* -------------------------------------------------
+                  PRICE BREAKDOWN
+              ------------------------------------------------- */}
+
+              <div
+                className="
+                  mb-5
+                  flex
+                  flex-col
+                  gap-3
+                  text-xs
+                  font-medium
+                  text-brand-brown/80
+                  sm:mb-6
+                  sm:gap-4
+                  sm:text-sm
+                "
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span>Subtotal</span>
+
+                  <span className="font-bold text-brand-black">
+                    ₹{subtotal.toFixed(0)}
+                  </span>
                 </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <span>Tax (GST 18%)</span>
+
+                  <span className="font-bold text-brand-black">
+                    ₹{tax.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <span>Shipping estimate</span>
+
+                  {shipping === 0 ? (
+                    <span
+                      className="
+                        rounded-md
+                        border
+                        border-brand-green/20
+                        bg-brand-green/10
+                        px-2
+                        py-1
+                        text-[9px]
+                        font-bold
+                        uppercase
+                        tracking-widest
+                        text-brand-green
+                      "
+                    >
+                      Free
+                    </span>
+                  ) : (
+                    <span className="font-bold text-brand-black">
+                      ₹{shipping}
+                    </span>
+                  )}
+                </div>
+
+                {discount > 0 && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span>Coupon discount</span>
+
+                    <span className="font-bold text-brand-green">
+                      -₹{discount.toFixed(0)}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <hr className="mb-5 border-brand-brown/10 sm:mb-6" />
+
+              {/* TOTAL */}
+
+              <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
+                <span className="text-sm font-bold text-brand-black">
+                  Total
+                </span>
+
+                <span
+                  className="
+                    text-2xl
+                    font-extrabold
+                    text-brand-black
+                    sm:text-3xl
+                  "
+                >
+                  ₹{total.toFixed(0)}
+                </span>
+              </div>
+
+              {/* ERROR */}
+
+              {error && (
+                <p
+                  className="
+                    mb-4
+                    rounded-lg
+                    border
+                    border-red-100
+                    bg-red-50
+                    p-3
+                    text-xs
+                    font-semibold
+                    leading-4
+                    text-red-500
+                  "
+                >
+                  {error}
+                </p>
               )}
-            </div>
 
-            <hr className="border-brand-brown/10 mb-6" />
+              {/* DESKTOP PAY BUTTON */}
 
-            <div className="flex justify-between items-end mb-8">
-              <span className="font-bold text-brand-black">Total</span>
-              <span className="font-extrabold text-2xl text-brand-black">₹{total.toFixed(0)}</span>
-            </div>
+              <button
+                onClick={handlePlaceOrder}
+                disabled={
+                  placing ||
+                  loadingAddresses ||
+                  addresses.length === 0
+                }
+                className="
+                  hidden
+                  w-full
+                  items-center
+                  justify-center
+                  gap-2
+                  rounded-xl
+                  bg-brand-black
+                  py-4
+                  text-sm
+                  font-bold
+                  text-white
+                  shadow-md
+                  transition-all
+                  hover:-translate-y-0.5
+                  hover:bg-brand-brown
+                  hover:shadow-xl
+                  disabled:opacity-50
+                  disabled:hover:translate-y-0
+                  lg:flex
+                "
+              >
+                {placing ? (
+                  <>
+                    <Loader2
+                      size={16}
+                      className="animate-spin"
+                    />
 
-            {error && (
-              <p className="text-red-500 text-xs font-semibold mb-4 bg-red-50 border border-red-100 rounded-lg p-3">
-                {error}
-              </p>
-            )}
+                    Processing…
+                  </>
+                ) : (
+                  <>Pay ₹{total.toFixed(0)}</>
+                )}
+              </button>
 
-            <button
-              onClick={handlePlaceOrder}
-              disabled={placing || loadingAddresses || addresses.length === 0}
-              className="w-full flex items-center justify-center gap-2 bg-brand-black hover:bg-brand-brown text-white py-4 rounded-xl font-bold text-sm transition-all shadow-md hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
-            >
-              {placing ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" /> Processing…
-                </>
-              ) : (
-                <>Pay ₹{total.toFixed(0)}</>
-              )}
-            </button>
+              <div
+                className="
+                  mt-5
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
+                  text-[9px]
+                  font-bold
+                  uppercase
+                  tracking-[0.18em]
+                  text-brand-brown/50
+                  sm:mt-6
+                  sm:text-[11px]
+                "
+              >
+                <ShieldCheck size={14} />
 
-            <div className="mt-6 flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-widest text-brand-brown/50">
-              <ShieldCheck size={14} /> Secured by Razorpay
+                Secured by Razorpay
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile sticky pay bar -- the summary card only sticks at lg:, so on
-          phones/tablets the Pay button can be a long scroll away below a
-          large cart. Mirrors the same action so it's always reachable. */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-brand-brown/10 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex flex-col leading-tight">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-brand-brown/50">Total</span>
-            <span className="text-lg font-extrabold text-brand-black">₹{total.toFixed(0)}</span>
+      {/* =========================================================
+          MOBILE STICKY PAYMENT BAR
+      ========================================================= */}
+
+      <div
+        className="
+          fixed
+          inset-x-0
+          bottom-0
+          z-40
+          border-t
+          border-brand-brown/10
+          bg-white/95
+          px-4
+          pt-2.5
+          shadow-[0_-5px_20px_rgba(0,0,0,0.08)]
+          backdrop-blur-md
+          lg:hidden
+          sm:px-5
+          sm:pt-3
+          pb-[calc(0.65rem+env(safe-area-inset-bottom))]
+        "
+      >
+        <div
+          className="
+            mx-auto
+            flex
+            w-full
+            max-w-6xl
+            items-center
+            gap-3
+          "
+        >
+          {/* MOBILE TOTAL */}
+
+          <div className="min-w-0 shrink-0">
+            <span
+              className="
+                block
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-[0.16em]
+                text-brand-brown/50
+                sm:text-[10px]
+              "
+            >
+              Total
+            </span>
+
+            <span
+              className="
+                block
+                text-lg
+                font-extrabold
+                leading-tight
+                text-brand-black
+                sm:text-xl
+              "
+            >
+              ₹{total.toFixed(0)}
+            </span>
           </div>
+
+          {/* MOBILE PAY */}
+
           <button
             onClick={handlePlaceOrder}
-            disabled={placing || loadingAddresses || addresses.length === 0}
-            className="flex-1 max-w-[220px] flex items-center justify-center gap-2 bg-brand-black hover:bg-brand-brown text-white px-6 py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
+            disabled={
+              placing ||
+              loadingAddresses ||
+              addresses.length === 0
+            }
+            className="
+              flex
+              h-12
+              min-w-0
+              flex-1
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              bg-brand-black
+              px-4
+              text-sm
+              font-bold
+              text-white
+              shadow-md
+              transition-all
+              hover:bg-brand-brown
+              disabled:opacity-50
+              sm:h-13
+              sm:px-6
+            "
           >
             {placing ? (
               <>
-                <Loader2 size={16} className="animate-spin" /> Processing…
+                <Loader2
+                  size={16}
+                  className="animate-spin"
+                />
+
+                <span>Processing…</span>
               </>
             ) : (
-              <>Pay ₹{total.toFixed(0)}</>
+              <span>
+                Pay ₹{total.toFixed(0)}
+              </span>
             )}
           </button>
         </div>
       </div>
 
+      {/* =========================================================
+          ADD ADDRESS MODAL
+      ========================================================= */}
+
       {addressForm && (
-        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4">
-          <div className="absolute inset-0 bg-brand-black/40 backdrop-blur-sm" onClick={() => setAddressForm(null)} />
-          <div className="relative w-full sm:max-w-xl h-[100dvh] sm:h-auto sm:max-h-[88vh] bg-white sm:rounded-2xl flex flex-col overflow-hidden">
-            {/* Small top bar so the page's own "Back to Cart" (hidden behind
-                this full-screen overlay on mobile) is still reachable while
-                adding an address -- otherwise a new user with no saved
-                address has no way back to the cart except finishing the form. */}
-            <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-b border-brand-brown/10 flex-shrink-0">
+        <div
+          className="
+            fixed
+            inset-0
+            z-[70]
+            flex
+            items-end
+            justify-center
+            sm:items-center
+            sm:p-4
+          "
+        >
+          {/* BACKDROP */}
+
+          <div
+            className="
+              absolute
+              inset-0
+              bg-brand-black/40
+              backdrop-blur-sm
+            "
+            onClick={() => setAddressForm(null)}
+          />
+
+          {/* MODAL */}
+
+          <div
+            className="
+              relative
+              flex
+              h-[100dvh]
+              w-full
+              flex-col
+              overflow-hidden
+              bg-white
+              sm:h-auto
+              sm:max-h-[88vh]
+              sm:max-w-xl
+              sm:rounded-2xl
+            "
+          >
+            {/* MODAL HEADER */}
+
+            <div
+              className="
+                flex
+                shrink-0
+                items-center
+                justify-between
+                gap-3
+                border-b
+                border-brand-brown/10
+                px-4
+                py-3
+                sm:px-6
+                sm:py-3.5
+              "
+            >
               <button
                 type="button"
                 onClick={() => {
                   setAddressForm(null);
                   router.push("/cart");
                 }}
-                className="flex items-center gap-1.5 text-xs font-bold text-brand-brown/60 hover:text-brand-orange transition-colors"
+                className="
+                  flex
+                  min-h-9
+                  items-center
+                  gap-1.5
+                  rounded-lg
+                  text-xs
+                  font-bold
+                  text-brand-brown/60
+                  transition-colors
+                  hover:text-brand-orange
+                "
               >
-                <ArrowLeft size={14} strokeWidth={2.5} /> Back to Cart
+                <ArrowLeft
+                  size={14}
+                  strokeWidth={2.5}
+                />
+
+                Back to Cart
               </button>
+
               <button
                 type="button"
-                onClick={() => setAddressForm(null)}
+                onClick={() =>
+                  setAddressForm(null)
+                }
                 aria-label="Close"
-                className="w-8 h-8 flex items-center justify-center rounded-full text-brand-brown/50 hover:bg-gray-100 hover:text-brand-black transition-colors"
+                className="
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
+                  rounded-full
+                  text-brand-brown/50
+                  transition-colors
+                  hover:bg-gray-100
+                  hover:text-brand-black
+                "
               >
                 <X size={18} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+
+            {/* FORM */}
+
+            <div
+              className="
+                flex-1
+                overflow-y-auto
+                overscroll-contain
+                p-4
+                sm:p-6
+              "
+            >
               <AddressForm
                 form={addressForm}
                 setForm={setAddressForm}
                 onSubmit={handleSaveNewAddress}
-                onCancel={() => setAddressForm(null)}
+                onCancel={() =>
+                  setAddressForm(null)
+                }
                 saving={savingAddress}
               />
             </div>

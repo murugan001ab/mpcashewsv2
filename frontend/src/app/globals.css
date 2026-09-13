@@ -103,3 +103,44 @@ html, body {
   background-repeat: no-repeat;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
+
+/* Dual-handle price range slider on /products: two overlapping
+   <input type="range"> elements share one visual track. Each input is
+   pointer-events: none overall so the invisible full-width track never
+   blocks the other handle — only the thumb itself (re-enabled below) is
+   interactive, so both handles can be grabbed and dragged independently. */
+.range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+.range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--color-brand-orange);
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.range-slider::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--color-brand-orange);
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+.range-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  background: transparent;
+}
+.range-slider::-moz-range-track {
+  background: transparent;
+}
